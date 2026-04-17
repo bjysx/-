@@ -1,0 +1,104 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+  --layout-bg: #f1f5f9;
+  --panel-bg: rgba(255, 255, 255, 0.92);
+  --panel-border: rgba(148, 163, 184, 0.2);
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --brand-gradient: linear-gradient(135deg, #1d4ed8 0%, #4338ca 100%);
+}
+
+.dark {
+  color-scheme: dark;
+  --layout-bg: #020617;
+  --panel-bg: rgba(15, 23, 42, 0.85);
+  --panel-border: rgba(71, 85, 105, 0.45);
+  --text-primary: #e2e8f0;
+  --text-secondary: #94a3b8;
+}
+
+body {
+  margin: 0;
+  font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+  background: var(--layout-bg);
+  color: var(--text-primary);
+}
+
+html {
+  height: 100%;
+}
+
+
+
+* {
+  box-sizing: border-box;
+}
+
+#app {
+  min-height: 100vh;
+}
+
+.glass-panel {
+  background: var(--panel-bg);
+  backdrop-filter: blur(18px);
+  border: 1px solid var(--panel-border);
+  box-shadow: 0 16px 48px rgba(15, 23, 42, 0.08);
+}
+
+.brand-gradient {
+  background: var(--brand-gradient);
+}
+
+.page-shell {
+  @apply space-y-6;
+}
+
+.page-card {
+  @apply rounded-3xl p-5 md:p-6;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  box-shadow: 0 16px 48px rgba(15, 23, 42, 0.06);
+}
+
+.page-title {
+  @apply text-xl font-semibold md:text-2xl;
+  color: var(--text-primary);
+}
+
+.page-subtitle {
+  @apply mt-2 text-sm;
+  color: var(--text-secondary);
+}
+
+.el-menu {
+  border-right: none !important;
+}
+
+.el-card,
+.el-table,
+.el-input__wrapper,
+.el-select__wrapper,
+.el-dialog,
+.el-pagination button,
+.el-pagination .el-pager li {
+  border-radius: 16px;
+}
+
+.el-table th.el-table__cell {
+  background: transparent;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.el-input__suffix-inner {
+  @apply text-slate-400 hover:text-primary-500 transition-colors cursor-pointer;
+  font-size: 18px;
+}
+
+.el-input__password-browse-icon {
+  @apply opacity-70 hover:opacity-100;
+}
