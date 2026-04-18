@@ -45,7 +45,28 @@ class EmployeeRelation(models.Model):
     
     # 入职信息
     entry_date = models.DateField(verbose_name="入司日期")
+    regularization_date = models.DateField(blank=True, null=True, verbose_name="转正时间")
     work_years = models.DecimalField(max_digits=5, decimal_places=1, blank=True, null=True, verbose_name="工龄")
+    
+    # 详细信息（详情中显示）
+    birthplace = models.CharField(max_length=100, blank=True, null=True, verbose_name="籍贯")
+    id_card_number = models.CharField(max_length=18, blank=True, null=True, verbose_name="身份证号")
+    home_address = models.CharField(max_length=200, blank=True, null=True, verbose_name="家庭住址")
+    graduation_school = models.CharField(max_length=100, blank=True, null=True, verbose_name="毕业院校")
+    major = models.CharField(max_length=50, blank=True, null=True, verbose_name="专业")
+    marital_status = models.CharField(max_length=20, blank=True, null=True, verbose_name="婚姻状态")  # 未婚/已婚/离异/丧偶
+    family_member_name = models.CharField(max_length=50, blank=True, null=True, verbose_name="家庭成员姓名")
+    family_member_phone = models.CharField(max_length=11, blank=True, null=True, verbose_name="家庭成员电话")
+    emergency_contact_name = models.CharField(max_length=50, blank=True, null=True, verbose_name="紧急联系人姓名")
+    emergency_contact_phone = models.CharField(max_length=11, blank=True, null=True, verbose_name="紧急联系人电话")
+    bank_name = models.CharField(max_length=100, blank=True, null=True, verbose_name="银行卡开户银行名称")
+    bank_branch = models.CharField(max_length=100, blank=True, null=True, verbose_name="银行卡开户行")
+    bank_account = models.CharField(max_length=30, blank=True, null=True, verbose_name="银行卡号")
+    contract_number = models.CharField(max_length=50, blank=True, null=True, verbose_name="合同签订编号")
+    social_security_base = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True, verbose_name="社保缴纳基数")
+    position_salary = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True, verbose_name="岗位工资")
+    social_security_status = models.CharField(max_length=10, blank=True, null=True, verbose_name="是否缴纳社保")  # 是、否
+    social_security_date = models.DateField(blank=True, null=True, verbose_name="社保缴纳时间")
     
     # 合同信息
     contract_start_date = models.DateField(verbose_name="合同签订日期")

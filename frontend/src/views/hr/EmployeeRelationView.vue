@@ -69,6 +69,14 @@
           end-placeholder="结束日期"
           value-format="YYYY-MM-DD"
         />
+        <el-date-picker
+          v-model="filters.regularization_date"
+          type="daterange"
+          range-separator="至"
+          start-placeholder="转正时间"
+          end-placeholder="结束日期"
+          value-format="YYYY-MM-DD"
+        />
       </div>
     </div>
 
@@ -117,32 +125,13 @@
         <el-table-column prop="age" label="年龄" width="70" align="center" />
         <el-table-column prop="education" label="学历" width="80" />
         <el-table-column prop="entry_date" label="入司日期" width="110" />
+        <el-table-column prop="regularization_date" label="转正时间" width="110" />
         <el-table-column prop="work_years" label="工龄" width="70" align="center" />
         <el-table-column prop="contract_start_date" label="合同签订时间" width="110" />
         <el-table-column prop="contract_end_date" label="合同结束时间" width="110" />
         <el-table-column prop="salary" label="薪资" width="100" align="right">
           <template #default="{ row }">
             {{ formatMoney(row.salary) }}
-          </template>
-        </el-table-column>
-        <el-table-column prop="basic_salary" label="基本工资" width="100" align="right">
-          <template #default="{ row }">
-            {{ formatMoney(row.basic_salary) }}
-          </template>
-        </el-table-column>
-        <el-table-column prop="performance_salary" label="绩效工资" width="100" align="right">
-          <template #default="{ row }">
-            {{ formatMoney(row.performance_salary) }}
-          </template>
-        </el-table-column>
-        <el-table-column prop="commission" label="提成" width="80" align="right">
-          <template #default="{ row }">
-            {{ formatMoney(row.commission) }}
-          </template>
-        </el-table-column>
-        <el-table-column prop="allowance" label="补助" width="80" align="right">
-          <template #default="{ row }">
-            {{ formatMoney(row.allowance) }}
           </template>
         </el-table-column>
         <el-table-column label="操作" width="120" fixed="right">
@@ -323,6 +312,123 @@
         </el-row>
         <el-row :gutter="20">
           <el-col :span="12">
+            <el-form-item label="转正时间" prop="regularization_date">
+              <el-date-picker
+                v-model="form.regularization_date"
+                type="date"
+                placeholder="选择转正时间"
+                value-format="YYYY-MM-DD"
+                style="width: 100%"
+              />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="岗位工资" prop="position_salary">
+              <el-input-number v-model="form.position_salary" :min="0" :precision="2" style="width: 100%" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+
+        <!-- 详细信息 -->
+        <el-divider content-position="left">详细信息</el-divider>
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="籍贯" prop="birthplace">
+              <el-input v-model="form.birthplace" placeholder="请输入籍贯" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="身份证号" prop="id_card_number">
+              <el-input v-model="form.id_card_number" placeholder="请输入身份证号" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="家庭住址" prop="home_address">
+              <el-input v-model="form.home_address" placeholder="请输入家庭住址" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="毕业院校" prop="graduation_school">
+              <el-input v-model="form.graduation_school" placeholder="请输入毕业院校" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="专业" prop="major">
+              <el-input v-model="form.major" placeholder="请输入专业" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="婚姻状态" prop="marital_status">
+              <el-select v-model="form.marital_status" placeholder="请选择婚姻状态" style="width: 100%">
+                <el-option label="未婚" value="未婚" />
+                <el-option label="已婚" value="已婚" />
+                <el-option label="离异" value="离异" />
+                <el-option label="丧偶" value="丧偶" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="家庭成员姓名" prop="family_member_name">
+              <el-input v-model="form.family_member_name" placeholder="请输入家庭成员姓名" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="家庭成员电话" prop="family_member_phone">
+              <el-input v-model="form.family_member_phone" placeholder="请输入家庭成员电话" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="紧急联系人姓名" prop="emergency_contact_name">
+              <el-input v-model="form.emergency_contact_name" placeholder="请输入紧急联系人姓名" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="紧急联系人电话" prop="emergency_contact_phone">
+              <el-input v-model="form.emergency_contact_phone" placeholder="请输入紧急联系人电话" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="开户银行" prop="bank_name">
+              <el-input v-model="form.bank_name" placeholder="请输入银行卡开户银行名称" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="开户行" prop="bank_branch">
+              <el-input v-model="form.bank_branch" placeholder="请输入银行卡开户行" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="银行卡号" prop="bank_account">
+              <el-input v-model="form.bank_account" placeholder="请输入银行卡号" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="合同编号" prop="contract_number">
+              <el-input v-model="form.contract_number" placeholder="请输入合同签订编号" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="社保基数" prop="social_security_base">
+              <el-input-number v-model="form.social_security_base" :min="0" :precision="2" style="width: 100%" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="20">
+          <el-col :span="12">
             <el-form-item label="基本工资" prop="basic_salary">
               <el-input-number v-model="form.basic_salary" :min="0" :precision="2" style="width: 100%" />
             </el-form-item>
@@ -342,6 +448,27 @@
           <el-col :span="12">
             <el-form-item label="补助" prop="allowance">
               <el-input-number v-model="form.allowance" :min="0" :precision="2" style="width: 100%" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="是否缴纳社保" prop="social_security_status">
+              <el-select v-model="form.social_security_status" placeholder="请选择" style="width: 100%">
+                <el-option label="是" value="是" />
+                <el-option label="否" value="否" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="社保缴纳时间" prop="social_security_date">
+              <el-date-picker
+                v-model="form.social_security_date"
+                type="date"
+                placeholder="选择社保缴纳时间"
+                value-format="YYYY-MM-DD"
+                style="width: 100%"
+              />
             </el-form-item>
           </el-col>
         </el-row>
@@ -372,6 +499,65 @@
           </div>
         </template>
       </el-upload>
+    </el-dialog>
+
+    <!-- 详情对话框 -->
+    <el-dialog v-model="detailDialogVisible" title="员工详情" width="800px">
+      <div v-if="currentEmployee" class="detail-content">
+        <el-descriptions :column="2" border>
+          <el-descriptions-item label="员工姓名">{{ currentEmployee.employee_name }}</el-descriptions-item>
+          <el-descriptions-item label="性别">{{ currentEmployee.gender }}</el-descriptions-item>
+          <el-descriptions-item label="手机号">{{ currentEmployee.phone }}</el-descriptions-item>
+          <el-descriptions-item label="出生日期">{{ currentEmployee.birth_date }}</el-descriptions-item>
+          <el-descriptions-item label="部门">{{ currentEmployee.department }}</el-descriptions-item>
+          <el-descriptions-item label="岗位">{{ currentEmployee.position }}</el-descriptions-item>
+          <el-descriptions-item label="职级">{{ currentEmployee.job_level }}</el-descriptions-item>
+          <el-descriptions-item label="员工状态">{{ currentEmployee.employee_status }}</el-descriptions-item>
+          <el-descriptions-item label="入司日期">{{ currentEmployee.entry_date }}</el-descriptions-item>
+          <el-descriptions-item label="转正时间">{{ currentEmployee.regularization_date || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="工龄">{{ currentEmployee.work_years }}</el-descriptions-item>
+          <el-descriptions-item label="合同开始">{{ currentEmployee.contract_start_date }}</el-descriptions-item>
+          <el-descriptions-item label="合同结束">{{ currentEmployee.contract_end_date }}</el-descriptions-item>
+        </el-descriptions>
+        
+        <h4 class="detail-section-title">详细信息</h4>
+        <el-descriptions :column="2" border>
+          <el-descriptions-item label="籍贯">{{ currentEmployee.birthplace || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="身份证号">{{ currentEmployee.id_card_number || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="家庭住址">{{ currentEmployee.home_address || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="毕业院校">{{ currentEmployee.graduation_school || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="专业">{{ currentEmployee.major || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="婚姻状态">{{ currentEmployee.marital_status || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="家庭成员姓名">{{ currentEmployee.family_member_name || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="家庭成员电话">{{ currentEmployee.family_member_phone || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="紧急联系人姓名">{{ currentEmployee.emergency_contact_name || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="紧急联系人电话">{{ currentEmployee.emergency_contact_phone || '-' }}</el-descriptions-item>
+        </el-descriptions>
+        
+        <h4 class="detail-section-title">银行卡信息</h4>
+        <el-descriptions :column="2" border>
+          <el-descriptions-item label="开户银行">{{ currentEmployee.bank_name || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="开户行">{{ currentEmployee.bank_branch || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="银行卡号">{{ currentEmployee.bank_account || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="合同编号">{{ currentEmployee.contract_number || '-' }}</el-descriptions-item>
+        </el-descriptions>
+        
+        <h4 class="detail-section-title">社保信息</h4>
+        <el-descriptions :column="2" border>
+          <el-descriptions-item label="是否缴纳社保">{{ currentEmployee.social_security_status || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="社保缴纳时间">{{ currentEmployee.social_security_date || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="社保缴纳基数">{{ currentEmployee.social_security_base || '-' }}</el-descriptions-item>
+        </el-descriptions>
+        
+        <h4 class="detail-section-title">薪资信息</h4>
+        <el-descriptions :column="2" border>
+          <el-descriptions-item label="岗位工资">{{ currentEmployee.position_salary || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="基本工资">{{ currentEmployee.basic_salary }}</el-descriptions-item>
+          <el-descriptions-item label="绩效工资">{{ currentEmployee.performance_salary }}</el-descriptions-item>
+          <el-descriptions-item label="提成">{{ currentEmployee.commission }}</el-descriptions-item>
+          <el-descriptions-item label="补助">{{ currentEmployee.allowance }}</el-descriptions-item>
+        </el-descriptions>
+      </div>
     </el-dialog>
   </div>
 </template>
@@ -406,7 +592,8 @@ const filters = reactive({
   employee_name: '',
   work_years: null,
   contract_start_date: '',
-  birth_date: ''
+  birth_date: '',
+  regularization_date: ''
 })
 
 // 表格数据
@@ -440,13 +627,33 @@ const form = reactive({
   job_level: '',
   employee_status: '正式',
   entry_date: '',
+  regularization_date: '',
   work_years: 0,
   contract_start_date: '',
   contract_end_date: '',
   basic_salary: 0,
   performance_salary: 0,
   commission: 0,
-  allowance: 0
+  allowance: 0,
+  // 详细信息字段
+  id_card_number: '',
+  home_address: '',
+  graduation_school: '',
+  major: '',
+  marital_status: '',
+  family_member_name: '',
+  family_member_phone: '',
+  emergency_contact_name: '',
+  emergency_contact_phone: '',
+  bank_name: '',
+  bank_branch: '',
+  bank_account: '',
+  contract_number: '',
+  social_security_base: 0,
+  position_salary: 0,
+  // 社保信息
+  social_security_status: '',
+  social_security_date: ''
 })
 
 // 表单校验规则
@@ -464,6 +671,10 @@ const importDialogVisible = ref(false)
 const uploadHeaders = computed(() => ({
   'Authorization': `Bearer ${authStore.state.accessToken}`
 }))
+
+// 详情对话框
+const detailDialogVisible = ref(false)
+const currentEmployee = ref({})
 
 // 获取状态标签类型
 const getStatusType = (status) => {
@@ -550,9 +761,10 @@ const handleEdit = (row) => {
   dialogVisible.value = true
 }
 
-// 查看
+// 查看详情
 const handleView = (row) => {
-  ElMessage.info('查看功能开发中')
+  currentEmployee.value = { ...row }
+  detailDialogVisible.value = true
 }
 
 // 提交

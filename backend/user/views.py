@@ -152,6 +152,15 @@ class EmployeeRelationView(APIView):
                 Q(phone__icontains=keyword)
             )
         
+        # 转正时间范围筛选
+        regularization_date_start = request.query_params.get('regularization_date_start', '')
+        regularization_date_end = request.query_params.get('regularization_date_end', '')
+        if regularization_date_start and regularization_date_end:
+            queryset = queryset.filter(
+                regularization_date__gte=regularization_date_start,
+                regularization_date__lte=regularization_date_end
+            )
+        
         # 分页
         page = int(request.query_params.get('page', 1))
         page_size = int(request.query_params.get('page_size', 20))
@@ -177,6 +186,7 @@ class EmployeeRelationView(APIView):
                 'age': item.age,
                 'education': item.education,
                 'entry_date': item.entry_date.strftime('%Y-%m-%d') if item.entry_date else None,
+                'regularization_date': item.regularization_date.strftime('%Y-%m-%d') if item.regularization_date else None,
                 'work_years': item.work_years,
                 'contract_start_date': item.contract_start_date.strftime('%Y-%m-%d') if item.contract_start_date else None,
                 'contract_end_date': item.contract_end_date.strftime('%Y-%m-%d') if item.contract_end_date else None,
@@ -185,6 +195,25 @@ class EmployeeRelationView(APIView):
                 'performance_salary': float(item.performance_salary) if item.performance_salary else 0,
                 'commission': float(item.commission) if item.commission else 0,
                 'allowance': float(item.allowance) if item.allowance else 0,
+                # 详细信息字段
+                'birthplace': item.birthplace,
+                'id_card_number': item.id_card_number,
+                'home_address': item.home_address,
+                'graduation_school': item.graduation_school,
+                'major': item.major,
+                'marital_status': item.marital_status,
+                'family_member_name': item.family_member_name,
+                'family_member_phone': item.family_member_phone,
+                'emergency_contact_name': item.emergency_contact_name,
+                'emergency_contact_phone': item.emergency_contact_phone,
+                'bank_name': item.bank_name,
+                'bank_branch': item.bank_branch,
+                'bank_account': item.bank_account,
+                'contract_number': item.contract_number,
+                'social_security_base': float(item.social_security_base) if item.social_security_base else 0,
+                'position_salary': float(item.position_salary) if item.position_salary else 0,
+                'social_security_status': item.social_security_status,
+                'social_security_date': item.social_security_date.strftime('%Y-%m-%d') if item.social_security_date else None,
                 'created_at': item.created_at.strftime('%Y-%m-%d %H:%M:%S'),
                 'updated_at': item.updated_at.strftime('%Y-%m-%d %H:%M:%S'),
             })
@@ -213,6 +242,7 @@ class EmployeeRelationView(APIView):
             age=data.get('age', 0),
             education=data.get('education', ''),
             entry_date=data.get('entry_date'),
+            regularization_date=data.get('regularization_date'),
             work_years=data.get('work_years', 0),
             contract_start_date=data.get('contract_start_date'),
             contract_end_date=data.get('contract_end_date'),
@@ -221,6 +251,26 @@ class EmployeeRelationView(APIView):
             performance_salary=data.get('performance_salary', 0),
             commission=data.get('commission', 0),
             allowance=data.get('allowance', 0),
+            # 详细信息字段
+            birthplace=data.get('birthplace', ''),
+            id_card_number=data.get('id_card_number', ''),
+            home_address=data.get('home_address', ''),
+            graduation_school=data.get('graduation_school', ''),
+            major=data.get('major', ''),
+            marital_status=data.get('marital_status', ''),
+            family_member_name=data.get('family_member_name', ''),
+            family_member_phone=data.get('family_member_phone', ''),
+            emergency_contact_name=data.get('emergency_contact_name', ''),
+            emergency_contact_phone=data.get('emergency_contact_phone', ''),
+            bank_name=data.get('bank_name', ''),
+            bank_branch=data.get('bank_branch', ''),
+            bank_account=data.get('bank_account', ''),
+            contract_number=data.get('contract_number', ''),
+            social_security_base=data.get('social_security_base', 0),
+            position_salary=data.get('position_salary', 0),
+            # 社保信息
+            social_security_status=data.get('social_security_status', ''),
+            social_security_date=data.get('social_security_date'),
         )
         
         return Response({'id': employee.id, 'message': '创建成功'}, status=201)
@@ -275,6 +325,15 @@ class EmployeeRosterView(APIView):
                 Q(phone__icontains=keyword)
             )
         
+        # 转正时间范围筛选
+        regularization_date_start = request.query_params.get('regularization_date_start', '')
+        regularization_date_end = request.query_params.get('regularization_date_end', '')
+        if regularization_date_start and regularization_date_end:
+            queryset = queryset.filter(
+                regularization_date__gte=regularization_date_start,
+                regularization_date__lte=regularization_date_end
+            )
+        
         # 分页
         page = int(request.query_params.get('page', 1))
         page_size = int(request.query_params.get('page_size', 20))
@@ -300,6 +359,7 @@ class EmployeeRosterView(APIView):
                 'age': item.age,
                 'education': item.education,
                 'entry_date': item.entry_date.strftime('%Y-%m-%d') if item.entry_date else None,
+                'regularization_date': item.regularization_date.strftime('%Y-%m-%d') if item.regularization_date else None,
                 'work_years': item.work_years,
                 'contract_start_date': item.contract_start_date.strftime('%Y-%m-%d') if item.contract_start_date else None,
                 'contract_end_date': item.contract_end_date.strftime('%Y-%m-%d') if item.contract_end_date else None,
@@ -308,6 +368,25 @@ class EmployeeRosterView(APIView):
                 'performance_salary': float(item.performance_salary) if item.performance_salary else 0,
                 'commission': float(item.commission) if item.commission else 0,
                 'allowance': float(item.allowance) if item.allowance else 0,
+                # 详细信息字段
+                'birthplace': item.birthplace,
+                'id_card_number': item.id_card_number,
+                'home_address': item.home_address,
+                'graduation_school': item.graduation_school,
+                'major': item.major,
+                'marital_status': item.marital_status,
+                'family_member_name': item.family_member_name,
+                'family_member_phone': item.family_member_phone,
+                'emergency_contact_name': item.emergency_contact_name,
+                'emergency_contact_phone': item.emergency_contact_phone,
+                'bank_name': item.bank_name,
+                'bank_branch': item.bank_branch,
+                'bank_account': item.bank_account,
+                'contract_number': item.contract_number,
+                'social_security_base': float(item.social_security_base) if item.social_security_base else 0,
+                'position_salary': float(item.position_salary) if item.position_salary else 0,
+                'social_security_status': item.social_security_status,
+                'social_security_date': item.social_security_date.strftime('%Y-%m-%d') if item.social_security_date else None,
                 'created_at': item.created_at.strftime('%Y-%m-%d %H:%M:%S'),
                 'updated_at': item.updated_at.strftime('%Y-%m-%d %H:%M:%S'),
             })

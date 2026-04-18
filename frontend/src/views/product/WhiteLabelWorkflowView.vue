@@ -9,7 +9,7 @@
           <div class="flex gap-1">
             <el-button :type="currentBrand === '全部' ? 'primary' : 'default'" round @click="selectBrand('全部')">全部</el-button>
             <el-button :type="currentBrand === '白牌' ? 'primary' : 'default'" round @click="selectBrand('白牌')">白牌</el-button>
-            <el-button :type="currentBrand === '双星' ? 'primary' : 'default'" round @click="selectBrand('双星')">双星-V2</el-button>
+            <el-button :type="currentBrand === '双星' ? 'primary' : 'default'" round @click="selectBrand('双星')">双星</el-button>
             <el-button :type="currentBrand === '雅鹿' ? 'primary' : 'default'" round @click="selectBrand('雅鹿')">雅鹿</el-button>
           </div>
         </div>
