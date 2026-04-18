@@ -111,7 +111,7 @@
         </el-table-column>
 
         <template v-if="filters.workflow_type === 'sample'">
-          <!-- 图片放第一 -->
+          <!-- 图片 -->
           <el-table-column label="图片" width="80">
             <template #default="{ row }">
               <div v-if="row.images && row.images.length > 0" class="flex gap-1">
@@ -123,27 +123,76 @@
               <span v-else class="text-xs text-slate-400">无</span>
             </template>
           </el-table-column>
-          <!-- 平台方放第二 - 双星使用 selected_platform -->
-          <el-table-column label="平台方" width="90">
+          <!-- 平台 -->
+          <el-table-column label="平台" width="90">
             <template #default="{ row }">{{ row.selected_platform || '-' }}</template>
           </el-table-column>
-          <el-table-column label="报备ID" width="90">
+          <!-- 性别 -->
+          <el-table-column label="性别" width="60">
+            <template #default="{ row }">{{ row.gender || '-' }}</template>
+          </el-table-column>
+          <!-- 报备ID号 -->
+          <el-table-column label="报备ID号" width="90">
             <template #default="{ row }">{{ row.report_id || '-' }}</template>
           </el-table-column>
-          <el-table-column label="货号" width="90">
-            <template #default="{ row }">{{ row.article_number || '-' }}</template>
+          <!-- 爆款链接 -->
+          <el-table-column label="爆款链接" width="120">
+            <template #default="{ row }">
+              <a v-if="row.product_link" :href="row.product_link" target="_blank" class="text-blue-600 hover:underline text-xs">查看链接</a>
+              <span v-else class="text-xs text-slate-400">-</span>
+            </template>
           </el-table-column>
+          <!-- 销售量 -->
+          <el-table-column label="销售量" width="80">
+            <template #default="{ row }">{{ row.sales_volume || '-' }}</template>
+          </el-table-column>
+          <!-- 双星系统是否提报通过 -->
+          <el-table-column label="双星系统是否提报通过" width="140">
+            <template #default="{ row }">{{ row.ds_system_approval || '-' }}</template>
+          </el-table-column>
+          <!-- 平台价格 -->
+          <el-table-column label="平台价格" width="90">
+            <template #default="{ row }">{{ row.platform_price || '-' }}</template>
+          </el-table-column>
+          <!-- 需求价格 -->
+          <el-table-column label="需求价格" width="90">
+            <template #default="{ row }">{{ row.demand_price || '-' }}</template>
+          </el-table-column>
+          <!-- 企划需求 -->
+          <el-table-column label="企划需求" width="120" show-overflow-tooltip>
+            <template #default="{ row }">{{ row.planning_requirements || '-' }}</template>
+          </el-table-column>
+          <!-- 底材 -->
+          <el-table-column label="底材" width="100">
+            <template #default="{ row }">{{ row.sole_material || '-' }}</template>
+          </el-table-column>
+          <!-- 码段 -->
+          <el-table-column label="码段" width="80">
+            <template #default="{ row }">{{ row.size_range || '-' }}</template>
+          </el-table-column>
+          <!-- 开发节奏 -->
+          <el-table-column label="开发节奏" width="90">
+            <template #default="{ row }">{{ row.development_rhythm || '-' }}</template>
+          </el-table-column>
+          <!-- 开发季节 -->
+          <el-table-column label="开发季节" width="90">
+            <template #default="{ row }">{{ row.applicable_season || '-' }}</template>
+          </el-table-column>
+          <!-- 当前阶段 -->
           <el-table-column label="当前阶段" width="120">
             <template #default="{ row }">
               <span :class="['text-sm font-medium', row.current_stage === 'eliminated' ? 'text-red-600' : 'text-blue-600']">{{ getStageName(row.current_stage) }}</span>
             </template>
           </el-table-column>
-          <el-table-column label="部门审批人" width="90">
-            <template #default="{ row }">{{ row.approver_name || '-' }}</template>
-          </el-table-column>
+          <!-- 申请人 -->
           <el-table-column label="申请人" width="70">
             <template #default="{ row }">{{ row.applicant_name || '-' }}</template>
           </el-table-column>
+          <!-- 部门审批人 -->
+          <el-table-column label="部门审批人" width="90">
+            <template #default="{ row }">{{ row.approver_name || '-' }}</template>
+          </el-table-column>
+          <!-- 申请时间 -->
           <el-table-column label="申请时间" width="130">
             <template #default="{ row }">
               <span class="text-xs text-slate-500">{{ formatDateTime(row.application_time) }}</span>
@@ -305,6 +354,38 @@
           <el-form-item label="款式来源（跟单）" prop="style_source">
             <el-input v-model="createForm.style_source" placeholder="请输入款式来源" />
           </el-form-item>
+          <el-form-item label="性别" prop="gender">
+            <el-select v-model="createForm.gender" class="w-full" placeholder="请选择性别">
+              <el-option label="男" value="男" />
+              <el-option label="女" value="女" />
+              <el-option label="通用" value="通用" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="爆款链接" prop="product_link">
+            <el-input v-model="createForm.product_link" placeholder="请输入爆款链接" />
+          </el-form-item>
+          <el-form-item label="销售量" prop="sales_volume">
+            <el-input-number v-model="createForm.sales_volume" class="w-full" :min="0" placeholder="请输入销售量" />
+          </el-form-item>
+          <el-form-item label="平台价格" prop="platform_price">
+            <el-input-number v-model="createForm.platform_price" class="w-full" :min="0" :precision="2" placeholder="请输入平台价格" />
+          </el-form-item>
+          <el-form-item label="需求价格" prop="demand_price">
+            <el-input-number v-model="createForm.demand_price" class="w-full" :min="0" :precision="2" placeholder="请输入需求价格" />
+          </el-form-item>
+          <el-form-item label="企划需求" prop="planning_requirements">
+            <el-input v-model="createForm.planning_requirements" type="textarea" :rows="3" placeholder="请输入企划需求" />
+          </el-form-item>
+          <el-form-item label="码段" prop="size_range">
+            <el-input v-model="createForm.size_range" placeholder="请输入码段，如：35-40" />
+          </el-form-item>
+          <el-form-item label="开发节奏" prop="development_rhythm">
+            <el-select v-model="createForm.development_rhythm" class="w-full" placeholder="请选择开发节奏">
+              <el-option label="快速开发" value="快速开发" />
+              <el-option label="常规开发" value="常规开发" />
+              <el-option label="缓慢开发" value="缓慢开发" />
+            </el-select>
+          </el-form-item>
         </div>
         <el-form-item label="上传图片" prop="images">
           <el-upload action="/api/business/workflows/upload-image/"
@@ -345,6 +426,14 @@
             <div><p class="text-sm text-slate-500">鞋底材质</p><p class="font-medium">{{ currentWorkflow.sole_material || '-' }}</p></div>
             <div><p class="text-sm text-slate-500">鞋垫</p><p class="font-medium">{{ currentWorkflow.shoe_insole || '-' }}</p></div>
             <div><p class="text-sm text-slate-500">款式来源</p><p class="font-medium">{{ currentWorkflow.style_source || '-' }}</p></div>
+            <div><p class="text-sm text-slate-500">性别</p><p class="font-medium">{{ currentWorkflow.gender || '-' }}</p></div>
+            <div><p class="text-sm text-slate-500">爆款链接</p><p class="font-medium">{{ currentWorkflow.product_link || '-' }}</p></div>
+            <div><p class="text-sm text-slate-500">销售量</p><p class="font-medium">{{ currentWorkflow.sales_volume || '-' }}</p></div>
+            <div><p class="text-sm text-slate-500">平台价格</p><p class="font-medium">{{ currentWorkflow.platform_price || '-' }}</p></div>
+            <div><p class="text-sm text-slate-500">需求价格</p><p class="font-medium">{{ currentWorkflow.demand_price || '-' }}</p></div>
+            <div><p class="text-sm text-slate-500">企划需求</p><p class="font-medium">{{ currentWorkflow.planning_requirements || '-' }}</p></div>
+            <div><p class="text-sm text-slate-500">码段</p><p class="font-medium">{{ currentWorkflow.size_range || '-' }}</p></div>
+            <div><p class="text-sm text-slate-500">开发节奏</p><p class="font-medium">{{ currentWorkflow.development_rhythm || '-' }}</p></div>
             <div><p class="text-sm text-slate-500">状态</p>
               <el-tag :type="statusTypeMap[currentWorkflow.status] || 'info'" effect="light">
                 {{ statusTextMap[currentWorkflow.status] || currentWorkflow.status }}
@@ -808,7 +897,10 @@ const createForm = reactive({
   images: [], report_id: "", article_number: "",
   ds_system_approval: "", ds_brand: "", order_color: "", quantity: null,
   selected_platform: "", applicable_season: "", shoe_category: "",
-  sole_material: "", shoe_insole: "", style_source: "", approver: ""
+  sole_material: "", shoe_insole: "", style_source: "", approver: "",
+  gender: "", product_link: "", sales_volume: null,
+  platform_price: null, demand_price: null, planning_requirements: "",
+  size_range: "", development_rhythm: ""
 })
 
 const createRules = {

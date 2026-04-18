@@ -15,8 +15,8 @@
         </div>
       </div>
 
-      <!-- 进度选择 - 只对白牌显示 -->
-      <div v-if="currentBrand === '白牌'" class="mb-5">
+      <!-- 进度选择 - 对白牌和全部显示 -->
+      <div v-if="currentBrand === '白牌' || currentBrand === '全部'" class="mb-5">
         <div class="flex items-center gap-3">
           <span class="text-base font-semibold text-gray-700">进度：</span>
           <div class="flex gap-2">
@@ -80,13 +80,7 @@
         <span class="text-lg">待开发</span>
       </div>
 
-      <!-- 全部待开发提示 -->
-      <div v-else-if="currentBrand === '全部'" class="flex flex-col items-center justify-center py-20 text-gray-400">
-        <el-icon :size="64" class="mb-4"><Collection /></el-icon>
-        <span class="text-lg">待开发</span>
-      </div>
-
-      <!-- 白牌工作流内容 -->
+      <!-- 白牌工作流内容（包括全部品牌） -->
       <div v-else>
         <el-table v-loading="loading" :data="workflows" stripe row-key="id">
         <el-table-column type="expand">
@@ -214,10 +208,16 @@
               <span v-else class="text-xs text-slate-400">无图片</span>
             </template>
           </el-table-column>
+          <!-- 报备ID - 双星有，白牌无 -->
+          <el-table-column label="报备ID" width="90">
+            <template #default="{ row }">
+              <span class="text-sm">{{ row.report_id || '无' }}</span>
+            </template>
+          </el-table-column>
           <!-- 平台 -->
           <el-table-column label="平台" width="70">
             <template #default="{ row }">
-              <span class="text-sm">{{ row.platform || '-' }}</span>
+              <span class="text-sm">{{ row.platform || row.selected_platform || '-' }}</span>
             </template>
           </el-table-column>
           <!-- 性别 -->
@@ -1636,19 +1636,63 @@ async function loadSuppliers() {
 async function selectBrand(brand) {
   currentBrand.value = brand
   console.log('【调试】选择品牌:', brand, 'currentBrand:', currentBrand.value, '时间:', Date.now())
-  
-  // 待开发的品牌提示
-  if (brand === '全部' || brand === '雅鹿') {
+
+  // 雅鹿待开发
+  if (brand === '雅鹿') {
     ElMessage.info('待开发')
     workflows.value = []
     pagination.total = 0
     return
   }
-  
+
+  // 全部品牌 - 加载白牌和双星的数据
+  if (brand === '全部') {
+    loading.value = true
+    try {
+      // 同时查询白牌和双星的数据
+      const [whiteLabelResponse, doubleStarResponse] = await Promise.all([
+        getWorkflows({
+          page: 1,
+          page_size: pagination.page_size,
+          q: filters.q,
+          status: filters.status,
+          brand: 'white_label',
+          workflow_type: filters.workflow_type,
+          merchandiser: filters.merchandiser,
+          platform: filters.platform,
+          development_rhythm: filters.development_rhythm
+        }),
+        getWorkflows({
+          page: 1,
+          page_size: pagination.page_size,
+          q: filters.q,
+          status: filters.status,
+          brand: 'double_star',
+          workflow_type: filters.workflow_type,
+          merchandiser: filters.merchandiser,
+          platform: filters.platform,
+          development_rhythm: filters.development_rhythm
+        })
+      ])
+
+      // 合并数据并按时间排序
+      const mergedResults = [...whiteLabelResponse.results, ...doubleStarResponse.results]
+      mergedResults.sort((a, b) => new Date(b.application_time || b.created_at) - new Date(a.application_time || a.created_at))
+
+      workflows.value = mergedResults
+      pagination.total = whiteLabelResponse.total + doubleStarResponse.total
+      pagination.page = 1
+      console.log('全部品牌数据:', mergedResults)
+    } finally {
+      loading.value = false
+    }
+    return
+  }
+
   // 白牌和双星正常加载数据
   const brandParam = brand === '双星' ? 'double_star' : 'white_label'
   console.log('selectBrand - brandParam:', brandParam)
-  
+
   loading.value = true
   try {
     const response = await getWorkflows({
@@ -1680,23 +1724,60 @@ async function loadWorkflows(page = pagination.page) {
   loading.value = true
   try {
     pagination.page = page
-    // 根据品牌选择不同的 brand 参数
-    const brandParam = currentBrand.value === '双星' ? 'double_star' : 'white_label'
-    console.log('loadWorkflows - currentBrand:', currentBrand.value, 'brandParam:', brandParam)
-    const response = await getWorkflows({
-      page: pagination.page,
-      page_size: pagination.page_size,
-      q: filters.q,
-      status: filters.status,
-      brand: brandParam,
-      workflow_type: filters.workflow_type,
-      merchandiser: filters.merchandiser,
-      platform: filters.platform,
-      development_rhythm: filters.development_rhythm
-    })
-    console.log('工作流数据:', response.results)
-    workflows.value = response.results
-    pagination.total = response.total
+    
+    // 如果是"全部"，同时加载白牌和双星的数据
+    if (currentBrand.value === '全部') {
+      const [whiteLabelResponse, doubleStarResponse] = await Promise.all([
+        getWorkflows({
+          page: pagination.page,
+          page_size: pagination.page_size,
+          q: filters.q,
+          status: filters.status,
+          brand: 'white_label',
+          workflow_type: filters.workflow_type,
+          merchandiser: filters.merchandiser,
+          platform: filters.platform,
+          development_rhythm: filters.development_rhythm
+        }),
+        getWorkflows({
+          page: pagination.page,
+          page_size: pagination.page_size,
+          q: filters.q,
+          status: filters.status,
+          brand: 'double_star',
+          workflow_type: filters.workflow_type,
+          merchandiser: filters.merchandiser,
+          platform: filters.platform,
+          development_rhythm: filters.development_rhythm
+        })
+      ])
+      
+      // 合并两个品牌的数据
+      const combinedResults = [...whiteLabelResponse.results, ...doubleStarResponse.results]
+      // 按时间排序（最新的在前）
+      combinedResults.sort((a, b) => new Date(b.application_time) - new Date(a.application_time))
+      
+      workflows.value = combinedResults
+      pagination.total = whiteLabelResponse.total + doubleStarResponse.total
+    } else {
+      // 单个品牌查询
+      const brandParam = currentBrand.value === '双星' ? 'double_star' : 'white_label'
+      console.log('loadWorkflows - currentBrand:', currentBrand.value, 'brandParam:', brandParam)
+      const response = await getWorkflows({
+        page: pagination.page,
+        page_size: pagination.page_size,
+        q: filters.q,
+        status: filters.status,
+        brand: brandParam,
+        workflow_type: filters.workflow_type,
+        merchandiser: filters.merchandiser,
+        platform: filters.platform,
+        development_rhythm: filters.development_rhythm
+      })
+      console.log('工作流数据:', response.results)
+      workflows.value = response.results
+      pagination.total = response.total
+    }
   } finally {
     loading.value = false
   }
