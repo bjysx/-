@@ -1,22 +1,21 @@
 <template>
   <div class="page-shell">
     <section class="page-card">
-      <!-- 版本标记: v2-使用DoubleStarWorkflow组件 -->
       <!-- 品牌选择 -->
       <div class="mb-5">
         <div class="flex items-center gap-3">
           <span class="text-base font-semibold text-gray-700">品牌：</span>
-          <div class="flex gap-1">
+          <div class="flex gap-2">
+            <el-button :type="currentBrand === '全部' ? 'primary' : 'default'" round @click="selectBrand('全部')">全部</el-button>
             <el-button :type="currentBrand === '白牌' ? 'primary' : 'default'" round @click="selectBrand('白牌')">白牌</el-button>
             <el-button :type="currentBrand === '双星' ? 'primary' : 'default'" round @click="selectBrand('双星')">双星</el-button>
             <el-button :type="currentBrand === '雅鹿' ? 'primary' : 'default'" round @click="selectBrand('雅鹿')">雅鹿</el-button>
-            <el-button :type="currentBrand === 'FKO' ? 'primary' : 'default'" round @click="selectBrand('FKO')">FKO</el-button>
           </div>
         </div>
       </div>
 
-      <!-- 进度选择 - 只对白牌显示 -->
-      <div v-if="currentBrand === '白牌'" class="mb-5">
+      <!-- 进度选择 -->
+      <div class="mb-5">
         <div class="flex items-center gap-3">
           <span class="text-base font-semibold text-gray-700">进度：</span>
           <div class="flex gap-2">
@@ -27,8 +26,8 @@
         </div>
       </div>
 
-      <!-- 筛选条件 - 只对白牌显示 -->
-      <div v-if="currentBrand === '白牌'" class="mb-5 p-4 bg-gray-50 rounded-lg">
+      <!-- 筛选条件 -->
+      <div class="mb-5 p-4 bg-gray-50 rounded-lg">
         <el-form :inline="true" :model="filters" class="w-full">
           <el-form-item class="!mb-2 md:!mb-0">
             <el-input v-model="filters.q" clearable placeholder="搜索产品名称" @keyup.enter="loadWorkflows(1)" class="w-[200px]" />
@@ -69,26 +68,13 @@
         </el-form>
       </div>
 
-      <!-- 双星品牌：直接使用跨境双星工作流组件（只显示品牌按钮和组件本身） -->
-      <template v-if="currentBrand === '双星'">
-        <DoubleStarWorkflow :embedded="true" />
-      </template>
-
-      <!-- 雅鹿待开发提示 -->
-      <div v-else-if="currentBrand === '雅鹿'" class="flex flex-col items-center justify-center py-20 text-gray-400">
+      <!-- 待开发提示 -->
+      <div v-if="currentBrand === '双星' || currentBrand === '雅鹿'" class="flex flex-col items-center justify-center py-20 text-gray-400">
         <el-icon :size="64" class="mb-4"><Collection /></el-icon>
         <span class="text-lg">待开发</span>
       </div>
 
-      <!-- 全部待开发提示 -->
-      <div v-else-if="currentBrand === '全部'" class="flex flex-col items-center justify-center py-20 text-gray-400">
-        <el-icon :size="64" class="mb-4"><Collection /></el-icon>
-        <span class="text-lg">待开发</span>
-      </div>
-
-      <!-- 白牌工作流内容 -->
-      <div v-else>
-        <el-table v-loading="loading" :data="workflows" stripe row-key="id">
+      <el-table v-else v-loading="loading" :data="workflows" stripe row-key="id">
         <el-table-column type="expand">
           <template #default="{ row }">
             <div class="p-4 bg-gray-50">
@@ -368,7 +354,6 @@
           @current-change="loadWorkflows"
           @size-change="handleSizeChange"
         />
-      </div>
       </div>
     </section>
 
@@ -929,7 +914,7 @@
                 </div>
               </div>
 
-              <!-- 步骤4: 确认跟单进度 -->
+              <!-- 步骤4: 确认LOGO/高频 -->
               <div class="flex gap-4 pb-6 border-b">
                 <div class="flex flex-col items-center">
                   <div :class="['w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium', currentWorkflow.current_stage >= 4 ? 'bg-green-500 text-white' : currentWorkflow.current_stage === 3 ? 'bg-blue-500 text-white animate-pulse' : 'bg-gray-200 text-gray-500']">
@@ -940,20 +925,12 @@
                 </div>
                 <div class="flex-1">
                   <div class="flex items-center justify-between mb-2">
-                    <span class="font-medium">确认跟单进度</span>
+                    <span class="font-medium">确认LOGO/高频</span>
                     <el-tag :type="getStageStatusType(3)" size="small">{{ getStageStatusText(3) }}</el-tag>
                   </div>
                   <p class="text-sm text-slate-500">跟单员：{{ currentWorkflow.merchandiser_name || '-' }}</p>
-                  <!-- 显示跟单进度记录（只显示有数据的行） -->
-                  <div v-if="currentWorkflow.merchandiser_progress_records && currentWorkflow.merchandiser_progress_records.filter(r => r.progress || r.remark).length > 0" class="mt-2">
-                    <p class="text-xs text-slate-400 mb-1">跟单进度记录：</p>
-                    <div v-for="(record, idx) in currentWorkflow.merchandiser_progress_records.filter(r => r.progress || r.remark)" :key="idx" class="text-xs text-slate-500 mb-1">
-                      {{ record.time }} - {{ record.progress }} - {{ record.remark }} - {{ record.completed ? '已完成' : '进行中' }}
-                    </div>
-                  </div>
                   <div v-if="currentWorkflow && currentWorkflow.status === 'in_progress' && currentWorkflow.current_stage === 3 && currentWorkflow.current_stage !== 'eliminated' && userInfo && userInfo.id && currentWorkflow.merchandiser === userInfo.id" class="mt-3 flex gap-2">
-                    <el-button type="primary" size="small" @click="openMerchandiserProgressDialog(currentWorkflow)">更新跟单进度</el-button>
-                    <el-button type="success" size="small" @click="completeMerchandiserProgress(currentWorkflow)">完成</el-button>
+                    <el-button type="primary" size="small" @click="confirmLogo(currentWorkflow)">确认LOGO/高频</el-button>
                     <el-button type="danger" size="small" @click="rejectWorkflow(currentWorkflow)">拒绝</el-button>
                   </div>
                 </div>
@@ -1262,50 +1239,6 @@
       </template>
     </el-dialog>
 
-    <!-- 跟单进度更新对话框 -->
-    <el-dialog v-model="merchandiserProgressDialogVisible" title="更新跟单进度" width="700px">
-      <div class="p-4">
-        <el-table :data="merchandiserProgressForm.records" border>
-          <el-table-column label="跟单进度" width="200">
-            <template #default="{ row }">
-              <el-input v-model="row.progress" placeholder="请输入进度" />
-            </template>
-          </el-table-column>
-          <el-table-column label="备注" width="250">
-            <template #default="{ row }">
-              <el-input v-model="row.remark" placeholder="请输入备注" />
-            </template>
-          </el-table-column>
-          <el-table-column label="是否完成" width="100" align="center">
-            <template #default="{ row }">
-              <el-checkbox v-model="row.completed" />
-            </template>
-          </el-table-column>
-          <el-table-column label="更新时间" width="150">
-            <template #default="{ row }">
-              <span class="text-xs text-slate-500">{{ row.time || '-' }}</span>
-            </template>
-          </el-table-column>
-          <el-table-column label="操作" width="80" align="center">
-            <template #default="{ $index }">
-              <el-button type="danger" link size="small" @click="removeProgressRecord($index)">删除</el-button>
-            </template>
-          </el-table-column>
-        </el-table>
-        <div class="mt-3">
-          <el-button type="primary" size="small" @click="addProgressRecord">
-            <el-icon><Plus /></el-icon>添加行
-          </el-button>
-        </div>
-      </div>
-      <template #footer>
-        <div class="flex justify-end gap-2">
-          <el-button @click="merchandiserProgressDialogVisible = false">取消</el-button>
-          <el-button type="primary" :loading="submitting" @click="submitMerchandiserProgress">确认</el-button>
-        </div>
-      </template>
-    </el-dialog>
-
     <!-- 电子订单制作对话框 -->
     <el-dialog v-model="electronicOrderDialogVisible" title="电子订单制作" width="800px">
       <div class="p-4">
@@ -1439,7 +1372,6 @@ import { formatDate, formatDateTime } from "@/utils/formatters"
 import { getUsers } from "@/api/system"
 import { getWorkflows, getWorkflowDetail, createWorkflow, updateWorkflowStatus, deleteWorkflow, uploadWorkflowImage, getSupplierMerchandisers } from "@/api/business"
 import { useAuthStore } from "@/store/auth"
-import DoubleStarWorkflow from "./DoubleStarWorkflowView.vue"
 
 const authStore = useAuthStore()
 const userInfo = computed(() => authStore.state.user)
@@ -1477,16 +1409,6 @@ const eliminateForm = reactive({
   eliminate_reason: "",
   eliminate_time: null,
   eliminator_name: ""
-})
-
-// 跟单进度相关
-const merchandiserProgressDialogVisible = ref(false)
-const merchandiserProgressFormRef = ref()
-const merchandiserProgressForm = reactive({
-  records: [
-    { progress: '', remark: '', completed: false, time: '' },
-    { progress: '', remark: '', completed: false, time: '' }
-  ]
 })
 
 // 电子订单相关
@@ -1633,9 +1555,9 @@ async function loadSuppliers() {
   }
 }
 
-async function selectBrand(brand) {
+function selectBrand(brand) {
   currentBrand.value = brand
-  console.log('【调试】选择品牌:', brand, 'currentBrand:', currentBrand.value, '时间:', Date.now())
+  console.log('选择品牌:', brand)
   
   // 待开发的品牌提示
   if (brand === '全部' || brand === '雅鹿') {
@@ -1645,30 +1567,8 @@ async function selectBrand(brand) {
     return
   }
   
-  // 白牌和双星正常加载数据
-  const brandParam = brand === '双星' ? 'double_star' : 'white_label'
-  console.log('selectBrand - brandParam:', brandParam)
-  
-  loading.value = true
-  try {
-    const response = await getWorkflows({
-      page: 1,
-      page_size: pagination.page_size,
-      q: filters.q,
-      status: filters.status,
-      brand: brandParam,
-      workflow_type: filters.workflow_type,
-      merchandiser: filters.merchandiser,
-      platform: filters.platform,
-      development_rhythm: filters.development_rhythm
-    })
-    console.log('工作流数据:', response.results)
-    workflows.value = response.results
-    pagination.total = response.total
-    pagination.page = 1
-  } finally {
-    loading.value = false
-  }
+  // 白牌和双星正常加载
+  loadWorkflows(1)
 }
 
 function selectWorkflowType(type) {
@@ -1680,15 +1580,12 @@ async function loadWorkflows(page = pagination.page) {
   loading.value = true
   try {
     pagination.page = page
-    // 根据品牌选择不同的 brand 参数
-    const brandParam = currentBrand.value === '双星' ? 'double_star' : 'white_label'
-    console.log('loadWorkflows - currentBrand:', currentBrand.value, 'brandParam:', brandParam)
     const response = await getWorkflows({
       page: pagination.page,
       page_size: pagination.page_size,
       q: filters.q,
       status: filters.status,
-      brand: brandParam,
+      brand: "white_label",
       workflow_type: filters.workflow_type,
       merchandiser: filters.merchandiser,
       platform: filters.platform,
@@ -1748,8 +1645,7 @@ async function submitCreateForm() {
   }
   submitting.value = true
   try {
-    const brand = currentBrand.value === '双星' ? 'double_star' : 'white_label'
-    await createWorkflow({ ...createForm, brand })
+    await createWorkflow({ ...createForm, brand: "white_label" })
     ElMessage.success("工作流创建成功")
     createDialogVisible.value = false
     await loadWorkflows(1)
@@ -1776,7 +1672,7 @@ async function viewWorkflowDetail(row) {
   }
   console.log('查看工作流详情:', currentWorkflow.value)
   console.log('当前用户信息:', userInfo.value)
-  console.log('是否显示更新跟单进度按钮:', currentWorkflow.value && currentWorkflow.value.status === 'in_progress' && currentWorkflow.value.current_stage === 3 && userInfo.value && userInfo.value.id && currentWorkflow.value.merchandiser === userInfo.value.id)
+  console.log('是否显示确认LOGO/高频按钮:', currentWorkflow.value && currentWorkflow.value.status === 'in_progress' && currentWorkflow.value.current_stage === 3 && userInfo.value && userInfo.value.id && currentWorkflow.value.merchandiser === userInfo.value.id)
   detailDialogVisible.value = true
 }
 
@@ -1857,7 +1753,7 @@ function getStageName(currentStage) {
     0: '待提交',
     1: '部门领导审批',
     2: '选择供应商',
-    3: '确认跟单进度',
+    3: '确认LOGO/高频',
     4: '样品送至业务',
     5: '首色对接-审核材质',
     6: '首色对接-运营审核数据价格',
@@ -1883,7 +1779,7 @@ function getWorkflowStages(workflow) {
     { name: '提交', status: workflow.status !== 'pending' ? 'completed' : 'pending', handler: workflow.applicant_name },
     { name: '部门领导审批', status: workflow.current_stage >= 2 ? 'completed' : workflow.current_stage === 1 ? 'current' : 'pending', handler: workflow.approver_name },
     { name: '选供应商', status: workflow.current_stage >= 3 ? 'completed' : workflow.current_stage === 2 ? 'current' : 'pending', handler: workflow.supplier || '-' },
-    { name: '确认跟单进度', status: workflow.current_stage >= 4 ? 'completed' : workflow.current_stage === 3 ? 'current' : 'pending', handler: workflow.merchandiser_name },
+    { name: '确认LOGO', status: workflow.current_stage >= 4 ? 'completed' : workflow.current_stage === 3 ? 'current' : 'pending', handler: workflow.merchandiser_name },
     { name: '样品送至业务', status: workflow.current_stage >= 5 ? 'completed' : workflow.current_stage === 4 ? 'current' : 'pending', handler: workflow.merchandiser_name },
     { name: '首色对接-审核材质', status: workflow.current_stage >= 6 ? 'completed' : workflow.current_stage === 5 ? 'current' : 'pending', handler: workflow.salesperson_name },
     { name: '首色对接-运营审核数据价格', status: workflow.current_stage >= 7 ? 'completed' : workflow.current_stage === 6 ? 'current' : 'pending', handler: workflow.operator_name },
@@ -1943,7 +1839,7 @@ function selectSupplier(workflow) {
 }
 
 function confirmLogo(workflow) {
-  openApproveDialog(workflow, "confirm_logo", "更新跟单进度")
+  openApproveDialog(workflow, "confirm_logo", "确认LOGO/高频")
 }
 
 function placeSampleOrder(workflow) {
@@ -2222,67 +2118,6 @@ async function rejectOrderDataPriceByLeader(workflow) {
     }
   } catch (error) {
     ElMessage.error('拒绝失败')
-  }
-}
-
-// 跟单进度相关方法
-function openMerchandiserProgressDialog(workflow) {
-  currentWorkflow.value = workflow
-  // 初始化默认两行
-  merchandiserProgressForm.records = [
-    { progress: '', remark: '', completed: false, time: '' },
-    { progress: '', remark: '', completed: false, time: '' }
-  ]
-  merchandiserProgressDialogVisible.value = true
-}
-
-function addMerchandiserProgressRow() {
-  merchandiserProgressForm.records.push({ progress: '', remark: '', completed: false, time: '' })
-}
-
-function removeMerchandiserProgressRow(index) {
-  if (merchandiserProgressForm.records.length > 1) {
-    merchandiserProgressForm.records.splice(index, 1)
-  }
-}
-
-async function submitMerchandiserProgress() {
-  // 过滤掉空行（进度和备注都为空），并为每一行添加当前时间
-  const records = merchandiserProgressForm.records
-    .filter(row => row.progress || row.remark)
-    .map(row => ({
-      ...row,
-      time: new Date().toLocaleString()
-    }))
-  
-  try {
-    await updateWorkflowStatus(currentWorkflow.value.id, {
-      action: 'update_merchandiser_progress',
-      progress_records: records
-    })
-    ElMessage.success('跟单进度更新成功')
-    merchandiserProgressDialogVisible.value = false
-    await loadWorkflows(pagination.page)
-    if (detailDialogVisible.value) {
-      const response = await getWorkflowDetail(currentWorkflow.value.id)
-      currentWorkflow.value = response
-    }
-  } catch (error) {
-    ElMessage.error('更新失败')
-  }
-}
-
-async function completeMerchandiserProgress(workflow) {
-  try {
-    await updateWorkflowStatus(workflow.id, { action: 'complete_merchandiser_progress' })
-    ElMessage.success('跟单进度已完成')
-    await loadWorkflows(pagination.page)
-    if (detailDialogVisible.value) {
-      const response = await getWorkflowDetail(workflow.id)
-      currentWorkflow.value = response
-    }
-  } catch (error) {
-    ElMessage.error('操作失败')
   }
 }
 

@@ -825,6 +825,7 @@ def _workflow_to_dict(workflow: ProductWorkflow):
         "need_photo_shoot": workflow.need_photo_shoot,
         "photo_shoot_date": workflow.photo_shoot_date,
         "photo_shoot_remarks": workflow.photo_shoot_remarks,
+        "merchandiser_progress_records": workflow.merchandiser_progress_records,
         "created_at": workflow.created_at,
         "updated_at": workflow.updated_at,
     }
@@ -1065,6 +1066,40 @@ class WorkflowStatusView(APIView):
             # 发送通知给跟单员（下样品单）
             if workflow.merchandiser:
                 logger.info(f"发送通知给跟单员 {workflow.merchandiser.username}：工作流 {workflow.product_name or '未命名产品'} LOGO/高频已确认，请下样品单")
+        elif action == "update_merchandiser_progress":
+            # 更新跟单进度记录 - 追加模式
+            if workflow.merchandiser != user:
+                return Response({"message": "你没有这个权限"})
+            new_records = payload.get("progress_records", [])
+            # 为每条新记录添加更新时间
+            from datetime import datetime
+            for record in new_records:
+                if not record.get("time"):
+                    record["time"] = datetime.now().strftime("%Y-%m-%d %H:%M")
+            # 获取已有记录并追加新记录
+            existing_records = workflow.merchandiser_progress_records or []
+            all_records = existing_records + new_records
+            workflow.merchandiser_progress_records = all_records
+            workflow.save()
+            return Response({
+                "message": "跟单进度已更新",
+                "records": all_records
+            })
+        elif action == "complete_merchandiser_progress":
+            # 完成跟单进度阶段
+            if workflow.merchandiser != user:
+                return Response({"message": "你没有这个权限"})
+            workflow.current_stage = "5"
+            workflow.progress = 44
+            workflow.save()
+            # 发送通知给跟单员（下样品单）
+            if workflow.merchandiser:
+                logger.info(f"发送通知给跟单员 {workflow.merchandiser.username}：工作流 {workflow.product_name or '未命名产品'} 跟单进度已确认完成，请下样品单")
+            return Response({
+                "message": "跟单进度阶段已完成，请下样品单",
+                "current_stage": workflow.current_stage,
+                "progress": workflow.progress
+            })
         elif action == "place_sample_order":
             # 样品送至业务
             if workflow.merchandiser != user:

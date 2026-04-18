@@ -1,16 +1,12 @@
 <template>
-  <div :class="props.embedded ? '' : 'page-shell'">
-    <section :class="props.embedded ? '' : 'page-card'">
-      <!-- 品牌选择 -->
-      <div v-if="!props.embedded" class="mb-5">
+  <div class="page-shell">
+    <section class="page-card">
+      <div class="mb-5">
         <div class="flex items-center gap-3">
           <span class="text-base font-semibold text-gray-700">品牌：</span>
           <div class="flex gap-2">
             <el-button :type="currentBrand === '全部' ? 'primary' : 'default'" round @click="selectBrand('全部')">全部</el-button>
-            <el-button :type="currentBrand === '白牌' ? 'primary' : 'default'" round @click="selectBrand('白牌')">白牌</el-button>
             <el-button :type="currentBrand === '双星' ? 'primary' : 'default'" round @click="selectBrand('双星')">双星</el-button>
-            <el-button :type="currentBrand === '雅鹿' ? 'primary' : 'default'" round @click="selectBrand('雅鹿')">雅鹿</el-button>
-            <el-button :type="currentBrand === 'FKO' ? 'primary' : 'default'" round @click="selectBrand('FKO')">FKO</el-button>
           </div>
         </div>
       </div>
@@ -52,7 +48,7 @@
             </el-select>
           </el-form-item>
           <el-form-item class="!mb-2 md:!mb-0">
-            <el-button v-if="filters.workflow_type === 'sample'" type="primary" :icon="Plus" @click="openCreateWorkflowDialog">发起流程</el-button>
+            <el-button v-if="filters.workflow_type === 'sample'" type="primary" :icon="Plus" @click="openCreateDialog">发起流程</el-button>
             <el-button type="success" @click="loadWorkflows(1)">查询</el-button>
             <el-button @click="resetFilters">重置</el-button>
           </el-form-item>
@@ -63,47 +59,29 @@
         <el-table-column type="expand">
           <template #default="{ row }">
             <div class="p-4 bg-gray-50">
-              <!-- 流程进度 -->
-              <div class="mt-4 border-t pt-4">
+              <div class="border-t pt-4">
                 <h5 class="text-sm font-semibold mb-3">流程进度</h5>
-                <div class="flex items-center justify-between bg-white p-3 rounded-lg shadow-sm">
-                  <div v-for="(stage, index) in getWorkflowStages(row)" :key="index" 
-                       :class="['flex flex-col items-center flex-1', index < getWorkflowStages(row).length - 1 ? 'relative' : '']">
+                <div class="flex items-center justify-between bg-white p-3 rounded-lg shadow-sm overflow-x-auto">
+                  <div v-for="(stage, index) in getWorkflowStages(row)" :key="index"
+                       :class="['flex flex-col items-center flex-1 min-w-[80px]', index < getWorkflowStages(row).length - 1 ? 'relative' : '']">
                     <div :class="['w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium z-10',
                       stage.status === 'completed' ? 'bg-green-500 text-white' :
                       stage.status === 'current' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-500']">
                       {{ stage.status === 'completed' ? '✓' : stage.status === 'current' ? '●' : index + 1 }}
                     </div>
-                    <span :class="['text-xs mt-1 text-center', stage.status === 'current' ? 'text-blue-600 font-medium' : 'text-slate-600']">
-                      {{ stage.name }}
-                    </span>
+                    <span :class="['text-xs mt-1 text-center', stage.status === 'current' ? 'text-blue-600 font-medium' : 'text-slate-600']">{{ stage.name }}</span>
                     <span v-if="stage.handler" class="text-xs text-slate-400 mt-0.5">{{ stage.handler }}</span>
-                    <!-- 连接线 -->
-                    <div v-if="index < getWorkflowStages(row).length - 1"
-                         :class="['absolute top-4 left-1/2 w-full h-0.5 -z-0',
-                          stage.status === 'completed' && getWorkflowStages(row)[index + 1].status !== 'pending' ? 'bg-green-400' : 'bg-gray-200']"
-                         style="width: calc(100% - 2rem); left: calc(50% + 1rem);"></div>
                   </div>
                 </div>
               </div>
-
-              <!-- 图片预览 -->
               <div v-if="row.images && row.images.length > 0" class="mt-4 border-t pt-4">
                 <h5 class="text-sm font-semibold mb-2">产品图片</h5>
                 <div class="flex flex-wrap gap-2">
-                  <el-image
-                    v-for="(image, imgIndex) in row.images.slice(0, 6)"
-                    :key="imgIndex"
-                    :src="image.startsWith('http') ? image : `/api${image}`"
-                    fit="cover"
-                    class="w-16 h-16 object-cover rounded cursor-pointer hover:opacity-80 transition-opacity"
-                    :preview-src-list="row.images.map(img => img.startsWith('http') ? img : `/api${img}`)"
-                    :initial-index="imgIndex"
-                    preview-teleported
-                  />
-                  <span v-if="row.images.length > 6" class="w-16 h-16 flex items-center justify-center bg-gray-100 rounded text-xs text-slate-500">
-                    +{{ row.images.length - 6 }}
-                  </span>
+                  <el-image v-for="(image, imgIndex) in row.images.slice(0, 6)" :key="imgIndex"
+                    :src="image.startsWith('http') ? image : image.startsWith('/media') ? image : `/api${image}`" fit="cover"
+                    class="w-16 h-16 object-cover rounded cursor-pointer hover:opacity-80"
+                    :preview-src-list="row.images.map(img => img.startsWith('http') ? img : img.startsWith('/media') ? img : `/api${img}`)"
+                    :initial-index="imgIndex" preview-teleported @error="handleImageLoadError" />
                 </div>
               </div>
             </div>
@@ -111,22 +89,6 @@
         </el-table-column>
 
         <template v-if="filters.workflow_type === 'sample'">
-          <!-- 图片放第一 -->
-          <el-table-column label="图片" width="80">
-            <template #default="{ row }">
-              <div v-if="row.images && row.images.length > 0" class="flex gap-1">
-                <el-image v-for="(img, index) in row.images.slice(0, 2)" :key="index"
-                  :src="img.startsWith('http') ? img : img.startsWith('/media') ? img : `/api${img}`"
-                  :preview-src-list="row.images.map(i => i.startsWith('http') ? i : i.startsWith('/media') ? i : `/api${i}`)"
-                  :initial-index="index" fit="cover" class="w-10 h-10 rounded border cursor-pointer" @error="handleImageLoadError" />
-              </div>
-              <span v-else class="text-xs text-slate-400">无</span>
-            </template>
-          </el-table-column>
-          <!-- 平台方放第二 - 双星使用 selected_platform -->
-          <el-table-column label="平台方" width="90">
-            <template #default="{ row }">{{ row.selected_platform || '-' }}</template>
-          </el-table-column>
           <el-table-column label="报备ID" width="90">
             <template #default="{ row }">{{ row.report_id || '-' }}</template>
           </el-table-column>
@@ -165,6 +127,17 @@
           </el-table-column>
           <el-table-column label="跟单员" width="80">
             <template #default="{ row }">{{ row.merchandiser_name || '-' }}</template>
+          </el-table-column>
+          <el-table-column label="产品图片" width="80">
+            <template #default="{ row }">
+              <div v-if="row.images && row.images.length > 0" class="flex gap-1">
+                <el-image v-for="(img, index) in row.images.slice(0, 2)" :key="index"
+                  :src="img.startsWith('http') ? img : img.startsWith('/media') ? img : `/api${img}`"
+                  :preview-src-list="row.images.map(i => i.startsWith('http') ? i : i.startsWith('/media') ? i : `/api${i}`)"
+                  :initial-index="index" fit="cover" class="w-10 h-10 rounded border cursor-pointer" />
+              </div>
+              <span v-else class="text-xs text-slate-400">无</span>
+            </template>
           </el-table-column>
           <el-table-column label="操作" width="100" fixed="right" align="center">
             <template #default="{ row }">
@@ -752,10 +725,6 @@ import { getUsers } from "@/api/system"
 import { getWorkflows, getWorkflowDetail, createWorkflow, deleteWorkflow, updateWorkflowStatus, getSupplierMerchandisers } from "@/api/business"
 import { useAuthStore } from "@/store/auth"
 
-const props = defineProps({
-  embedded: { type: Boolean, default: false }
-})
-
 const authStore = useAuthStore()
 const userInfo = computed(() => authStore.state.user)
 
@@ -775,7 +744,7 @@ const currentWorkflow = ref(null)
 const imageFileList = ref([])
 const whiteBgFileList = ref([])
 const reportFileList = ref([])
-const currentBrand = ref("全部")
+const currentBrand = ref("双星")
 const actionDialogTitle = ref("")
 const filters = reactive({ q: "", workflow_type: "sample", merchandiser: null, platform: null, development_rhythm: null })
 const pagination = reactive({ page: 1, page_size: 8, total: 0 })
@@ -1053,8 +1022,7 @@ async function loadWorkflows(page = pagination.page) {
       page: pagination.page, page_size: pagination.page_size,
       q: filters.q, workflow_type: filters.workflow_type,
       merchandiser: filters.merchandiser,
-      platform: filters.platform, development_rhythm: filters.development_rhythm,
-      brand: 'double_star'
+      platform: filters.platform, development_rhythm: filters.development_rhythm
     }
     console.log('[loadWorkflows] 请求参数:', params)
     const res = await getWorkflows(params)
@@ -1822,7 +1790,7 @@ function selectWorkflowType(type) {
   loadWorkflows(1)
 }
 
-function openCreateWorkflowDialog() {
+function openCreateDialog() {
   createDialogVisible.value = true
 }
 
@@ -1836,8 +1804,7 @@ async function submitCreateForm() {
       workflow_type: 'sample',
       status: 'pending',
       current_stage: '1',
-      progress: 0,
-      brand: 'double_star'
+      progress: 0
     }
 
     const response = await createWorkflow(formData)

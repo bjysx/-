@@ -190,8 +190,8 @@
           <el-col :span="12">
             <el-form-item label="性别" prop="gender">
               <el-radio-group v-model="form.gender">
-                <el-radio label="男">男</el-radio>
-                <el-radio label="女">女</el-radio>
+                <el-radio value="男">男</el-radio>
+                <el-radio value="女">女</el-radio>
               </el-radio-group>
             </el-form-item>
           </el-col>
@@ -404,7 +404,7 @@ const filters = reactive({
   employee_status: '',
   job_level: '',
   employee_name: '',
-  work_years: '',
+  work_years: null,
   contract_start_date: '',
   birth_date: ''
 })
@@ -538,7 +538,14 @@ const handleEdit = (row) => {
   currentId.value = row.id
   dialogTitle.value = '编辑员工'
   Object.keys(form).forEach(key => {
-    form[key] = row[key] || (key === 'gender' ? '男' : key === 'work_years' ? 0 : '')
+    const value = row[key]
+    if (key === 'work_years') {
+      form[key] = (value !== null && value !== undefined) ? value : 0
+    } else if (key === 'gender') {
+      form[key] = value || '男'
+    } else {
+      form[key] = value || ''
+    }
   })
   dialogVisible.value = true
 }

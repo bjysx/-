@@ -236,6 +236,10 @@ class ProductWorkflow(models.Model):
     photo_shoot_date = models.DateField(blank=True, null=True)  # 寄拍日期
     photo_shoot_remarks = models.TextField(blank=True, null=True)  # 寄拍备注
     
+    # 白牌工作流 - 跟单进度记录
+    merchandiser_progress_records = models.JSONField(blank=True, null=True)  # 跟单进度记录列表 [{progress, remark, completed, time}]
+    merchandiser_progress_completed = models.BooleanField(default=False)  # 跟单进度是否已完成
+    
     # 时间戳
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
