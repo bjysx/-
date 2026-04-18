@@ -667,6 +667,27 @@ class RecruitmentProgressView(APIView):
                     except:
                         resume_url = None
                 
+                # 处理新字段的日期格式
+                expected_interview_time = item.expected_interview_time
+                if expected_interview_time and hasattr(expected_interview_time, 'strftime'):
+                    expected_interview_time = expected_interview_time.strftime('%Y-%m-%d %H:%M')
+                
+                actual_interview_time = item.actual_interview_time
+                if actual_interview_time and hasattr(actual_interview_time, 'strftime'):
+                    actual_interview_time = actual_interview_time.strftime('%Y-%m-%d %H:%M')
+                
+                first_interview_actual_time = item.first_interview_actual_time
+                if first_interview_actual_time and hasattr(first_interview_actual_time, 'strftime'):
+                    first_interview_actual_time = first_interview_actual_time.strftime('%Y-%m-%d %H:%M')
+                
+                second_interview_actual_time = item.second_interview_actual_time
+                if second_interview_actual_time and hasattr(second_interview_actual_time, 'strftime'):
+                    second_interview_actual_time = second_interview_actual_time.strftime('%Y-%m-%d %H:%M')
+                
+                expected_onboard_date = item.expected_onboard_date
+                if expected_onboard_date and hasattr(expected_onboard_date, 'strftime'):
+                    expected_onboard_date = expected_onboard_date.strftime('%Y-%m-%d')
+                
                 data.append({
                     'id': item.id,
                     'candidate_name': item.candidate_name,
@@ -685,6 +706,36 @@ class RecruitmentProgressView(APIView):
                     'interview_result': item.interview_result,
                     'expected_arrival': expected_arrival,
                     'created_at': created_at,
+                    # 储备阶段字段
+                    'reserve_status': item.reserve_status,
+                    'add_time': created_at,
+                    # 待面试阶段字段
+                    'expected_interview_time': expected_interview_time,
+                    'actual_interview_time': actual_interview_time,
+                    # 初试阶段字段
+                    'is_attended': item.is_attended,
+                    'is_video_interview': item.is_video_interview,
+                    'first_interview_actual_time': first_interview_actual_time,
+                    'first_interview_actual_interviewer': item.first_interview_actual_interviewer,
+                    'first_interview_result': item.first_interview_result,
+                    'first_interview_fail_reason': item.first_interview_fail_reason,
+                    # 复试阶段字段
+                    'second_interview_actual_time': second_interview_actual_time,
+                    'second_interview_actual_interviewer': item.second_interview_actual_interviewer,
+                    'second_interview_result': item.second_interview_result,
+                    'second_interview_fail_reason': item.second_interview_fail_reason,
+                    # 确认offer阶段字段
+                    'expected_salary': item.expected_salary,
+                    'salary_confirm_standard': item.salary_confirm_standard,
+                    'probation_period': item.probation_period,
+                    'social_security_remarks': item.social_security_remarks,
+                    'onboard_department': item.onboard_department,
+                    'onboard_position': item.onboard_position,
+                    'job_level': item.job_level,
+                    'expected_onboard_date': expected_onboard_date,
+                    # 发offer阶段字段
+                    'offer_status': item.offer_status,
+                    'offer_reply': item.offer_reply,
                 })
             except Exception as e:
                 # 如果单条记录处理失败，跳过该记录
@@ -718,6 +769,30 @@ class RecruitmentProgressView(APIView):
             second_interviewer=data.get('second_interviewer', ''),
             interview_result=data.get('interview_result', '待面试'),
             expected_arrival_time=data.get('expected_arrival'),
+            # 新增字段
+            reserve_status=data.get('reserve_status', ''),
+            expected_interview_time=data.get('expected_interview_time'),
+            actual_interview_time=data.get('actual_interview_time'),
+            is_attended=data.get('is_attended', False),
+            is_video_interview=data.get('is_video_interview', False),
+            first_interview_actual_time=data.get('first_interview_actual_time'),
+            first_interview_actual_interviewer=data.get('first_interview_actual_interviewer', ''),
+            first_interview_result=data.get('first_interview_result', ''),
+            first_interview_fail_reason=data.get('first_interview_fail_reason', ''),
+            second_interview_actual_time=data.get('second_interview_actual_time'),
+            second_interview_actual_interviewer=data.get('second_interview_actual_interviewer', ''),
+            second_interview_result=data.get('second_interview_result', ''),
+            second_interview_fail_reason=data.get('second_interview_fail_reason', ''),
+            expected_salary=data.get('expected_salary', ''),
+            salary_confirm_standard=data.get('salary_confirm_standard', ''),
+            probation_period=data.get('probation_period', ''),
+            social_security_remarks=data.get('social_security_remarks', ''),
+            onboard_department=data.get('onboard_department', ''),
+            onboard_position=data.get('onboard_position', ''),
+            job_level=data.get('job_level', ''),
+            expected_onboard_date=data.get('expected_onboard_date'),
+            offer_status=data.get('offer_status', ''),
+            offer_reply=data.get('offer_reply', ''),
         )
         
         return Response({'id': progress.id, 'message': '创建成功'}, status=201)

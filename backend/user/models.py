@@ -181,6 +181,42 @@ class RecruitmentProgress(models.Model):
     # 到岗时间
     expected_arrival_time = models.DateField(blank=True, null=True, verbose_name="预计到岗时间")
     
+    # === 储备阶段 ===
+    reserve_status = models.CharField(max_length=20, blank=True, null=True, verbose_name="储备状态")
+    # created_at 自动作为新增时间
+    
+    # === 待面试阶段 ===
+    expected_interview_time = models.DateTimeField(blank=True, null=True, verbose_name="预计面试时间")
+    actual_interview_time = models.DateTimeField(blank=True, null=True, verbose_name="实际面试时间")
+    
+    # === 初试阶段 ===
+    is_attended = models.CharField(max_length=10, blank=True, null=True, verbose_name="是否到面")  # 是/否
+    is_video_interview = models.CharField(max_length=10, blank=True, null=True, verbose_name="是否视频面试")  # 是/否
+    first_interview_actual_time = models.DateTimeField(blank=True, null=True, verbose_name="初试时间")
+    first_interview_actual_interviewer = models.CharField(max_length=50, blank=True, null=True, verbose_name="初试面试官")
+    first_interview_result = models.CharField(max_length=20, blank=True, null=True, verbose_name="初试结果")  # 通过/未通过
+    first_interview_fail_reason = models.TextField(blank=True, null=True, verbose_name="初试未通过原因")
+    
+    # === 复试阶段 ===
+    second_interview_actual_time = models.DateTimeField(blank=True, null=True, verbose_name="复试时间")
+    second_interview_actual_interviewer = models.CharField(max_length=50, blank=True, null=True, verbose_name="复试面试官")
+    second_interview_result = models.CharField(max_length=20, blank=True, null=True, verbose_name="复试结果")  # 通过/未通过
+    second_interview_fail_reason = models.TextField(blank=True, null=True, verbose_name="复试未通过原因")
+    
+    # === 确认OFFER阶段 ===
+    expected_salary = models.CharField(max_length=50, blank=True, null=True, verbose_name="期待薪资")
+    salary_confirm_standard = models.CharField(max_length=100, blank=True, null=True, verbose_name="谈薪确认标准")
+    probation_period = models.CharField(max_length=20, blank=True, null=True, verbose_name="转正期限")
+    social_security_remarks = models.TextField(blank=True, null=True, verbose_name="社保备注")
+    onboard_department = models.CharField(max_length=50, blank=True, null=True, verbose_name="入职部门")
+    onboard_position = models.CharField(max_length=100, blank=True, null=True, verbose_name="入职岗位")
+    job_level = models.CharField(max_length=20, blank=True, null=True, verbose_name="职级")
+    expected_onboard_date = models.DateField(blank=True, null=True, verbose_name="预计入职日期")
+    
+    # === 发OFFER阶段 ===
+    offer_status = models.CharField(max_length=20, blank=True, null=True, verbose_name="OFFER状态")  # 已发/未发/已接受/已拒绝
+    offer_reply = models.TextField(blank=True, null=True, verbose_name="OFFER回复")
+    
     # 系统字段
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="更新时间")
