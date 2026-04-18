@@ -137,17 +137,6 @@
           <el-table-column label="性别" prop="gender" width="60" />
           <el-table-column label="学历" prop="education" width="80" />
           <el-table-column label="邀约HR" prop="invite_hr" width="100" />
-          <el-table-column label="一面面试时间" prop="first_interview_time" width="130" />
-          <el-table-column label="一面面试官" prop="first_interviewer" width="100" />
-          <el-table-column label="二面面试时间" prop="second_interview_time" width="130" />
-          <el-table-column label="二面面试官" prop="second_interviewer" width="100" />
-          <el-table-column label="面试结果" prop="interview_result" width="100">
-            <template #default="{ row }">
-              <el-tag :type="getInterviewResultType(row.interview_result)" size="small">
-                {{ row.interview_result }}
-              </el-tag>
-            </template>
-          </el-table-column>
           <el-table-column label="预计到岗时间" prop="expected_arrival" width="110" />
           <el-table-column label="操作" width="120" fixed="right">
             <template #default="{ row }">
@@ -798,54 +787,6 @@
                 <el-option label="李HR" value="李HR" />
                 <el-option label="王HR" value="王HR" />
               </el-select>
-            </el-form-item>
-          </el-col>
-        </el-row>
-        <el-row :gutter="20">
-          <el-col :span="12">
-            <el-form-item label="一面时间">
-              <el-date-picker v-model="progressForm.first_interview_time" type="datetime" placeholder="选择时间" class="w-full" value-format="YYYY-MM-DD HH:mm:ss" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="一面面试官">
-              <el-input v-model="progressForm.first_interviewer" placeholder="请输入面试官" />
-            </el-form-item>
-          </el-col>
-        </el-row>
-        <el-row :gutter="20">
-          <el-col :span="12">
-            <el-form-item label="二面时间">
-              <el-date-picker v-model="progressForm.second_interview_time" type="datetime" placeholder="选择时间" class="w-full" value-format="YYYY-MM-DD HH:mm:ss" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="二面面试官">
-              <el-input v-model="progressForm.second_interviewer" placeholder="请输入面试官" />
-            </el-form-item>
-          </el-col>
-        </el-row>
-        <el-row :gutter="20">
-          <el-col :span="12">
-            <el-form-item label="面试结果">
-              <el-select v-model="progressForm.interview_result" placeholder="请选择" class="w-full">
-                <el-option label="待面试" value="待面试" />
-                <el-option label="一面通过" value="一面通过" />
-                <el-option label="一面未通过" value="一面未通过" />
-                <el-option label="二面通过" value="二面通过" />
-                <el-option label="二面未通过" value="二面未通过" />
-                <el-option label="待发OFFER" value="待发OFFER" />
-                <el-option label="已发OFFER待入职" value="已发OFFER待入职" />
-                <el-option label="已入职" value="已入职" />
-                <el-option label="储备" value="储备" />
-                <el-option label="待定" value="待定" />
-                <el-option label="拒绝OFFER" value="拒绝OFFER" />
-              </el-select>
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="预计到岗">
-              <el-date-picker v-model="progressForm.expected_arrival" type="date" placeholder="选择日期" class="w-full" value-format="YYYY-MM-DD" />
             </el-form-item>
           </el-col>
         </el-row>
