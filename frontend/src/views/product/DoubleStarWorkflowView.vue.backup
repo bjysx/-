@@ -1,0 +1,1875 @@
+<template>
+  <div :class="props.embedded ? '' : 'page-shell'">
+    <section :class="props.embedded ? '' : 'page-card'">
+      <!-- 品牌选择 -->
+      <div v-if="!props.embedded" class="mb-5">
+        <div class="flex items-center gap-3">
+          <span class="text-base font-semibold text-gray-700">品牌：</span>
+          <div class="flex gap-2">
+            <el-button :type="currentBrand === '全部' ? 'primary' : 'default'" round @click="selectBrand('全部')">全部</el-button>
+            <el-button :type="currentBrand === '白牌' ? 'primary' : 'default'" round @click="selectBrand('白牌')">白牌</el-button>
+            <el-button :type="currentBrand === '双星' ? 'primary' : 'default'" round @click="selectBrand('双星')">双星</el-button>
+            <el-button :type="currentBrand === '雅鹿' ? 'primary' : 'default'" round @click="selectBrand('雅鹿')">雅鹿</el-button>
+            <el-button :type="currentBrand === 'FKO' ? 'primary' : 'default'" round @click="selectBrand('FKO')">FKO</el-button>
+          </div>
+        </div>
+      </div>
+
+      <div class="mb-5">
+        <div class="flex items-center gap-3">
+          <span class="text-base font-semibold text-gray-700">进度：</span>
+          <div class="flex gap-2">
+            <el-button :type="filters.workflow_type === 'sample' ? 'primary' : 'default'" round @click="selectWorkflowType('sample')">样品对接</el-button>
+            <el-button :type="filters.workflow_type === 'order' ? 'primary' : 'default'" round @click="selectWorkflowType('order')">订单处理</el-button>
+            <el-button :type="filters.workflow_type === 'production' ? 'primary' : 'default'" round @click="selectWorkflowType('production')">大货生产</el-button>
+          </div>
+        </div>
+      </div>
+
+      <div class="mb-5 p-4 bg-gray-50 rounded-lg">
+        <el-form :inline="true" :model="filters" class="w-full">
+          <el-form-item class="!mb-2 md:!mb-0">
+            <el-input v-model="filters.q" clearable placeholder="搜索产品名称" @keyup.enter="loadWorkflows(1)" class="w-[200px]" />
+          </el-form-item>
+          <el-form-item class="!mb-2 md:!mb-0">
+            <el-select v-model="filters.merchandiser" clearable placeholder="跟单员" class="w-[140px]">
+              <el-option v-for="u in users" :key="u.id" :label="u.nickname" :value="u.id" />
+            </el-select>
+          </el-form-item>
+          <el-form-item class="!mb-2 md:!mb-0">
+            <el-select v-model="filters.platform" clearable placeholder="平台" class="w-[140px]">
+              <el-option label="淘宝" value="淘宝" />
+              <el-option label="京东" value="京东" />
+              <el-option label="拼多多" value="拼多多" />
+              <el-option label="抖音" value="抖音" />
+            </el-select>
+          </el-form-item>
+          <el-form-item class="!mb-2 md:!mb-0">
+            <el-select v-model="filters.development_rhythm" clearable placeholder="开发节奏" class="w-[140px]">
+              <el-option label="快速开发" value="快速开发" />
+              <el-option label="常规开发" value="常规开发" />
+              <el-option label="缓慢开发" value="缓慢开发" />
+            </el-select>
+          </el-form-item>
+          <el-form-item class="!mb-2 md:!mb-0">
+            <el-button v-if="filters.workflow_type === 'sample'" type="primary" :icon="Plus" @click="openCreateWorkflowDialog">发起流程</el-button>
+            <el-button type="success" @click="loadWorkflows(1)">查询</el-button>
+            <el-button @click="resetFilters">重置</el-button>
+          </el-form-item>
+        </el-form>
+      </div>
+
+      <el-table v-loading="loading" :data="workflows" stripe row-key="id">
+        <el-table-column type="expand">
+          <template #default="{ row }">
+            <div class="p-4 bg-gray-50">
+              <!-- 流程进度 -->
+              <div class="mt-4 border-t pt-4">
+                <h5 class="text-sm font-semibold mb-3">流程进度</h5>
+                <div class="flex items-center justify-between bg-white p-3 rounded-lg shadow-sm">
+                  <div v-for="(stage, index) in getWorkflowStages(row)" :key="index" 
+                       :class="['flex flex-col items-center flex-1', index < getWorkflowStages(row).length - 1 ? 'relative' : '']">
+                    <div :class="['w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium z-10',
+                      stage.status === 'completed' ? 'bg-green-500 text-white' :
+                      stage.status === 'current' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-500']">
+                      {{ stage.status === 'completed' ? '✓' : stage.status === 'current' ? '●' : index + 1 }}
+                    </div>
+                    <span :class="['text-xs mt-1 text-center', stage.status === 'current' ? 'text-blue-600 font-medium' : 'text-slate-600']">
+                      {{ stage.name }}
+                    </span>
+                    <span v-if="stage.handler" class="text-xs text-slate-400 mt-0.5">{{ stage.handler }}</span>
+                    <!-- 连接线 -->
+                    <div v-if="index < getWorkflowStages(row).length - 1"
+                         :class="['absolute top-4 left-1/2 w-full h-0.5 -z-0',
+                          stage.status === 'completed' && getWorkflowStages(row)[index + 1].status !== 'pending' ? 'bg-green-400' : 'bg-gray-200']"
+                         style="width: calc(100% - 2rem); left: calc(50% + 1rem);"></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 图片预览 -->
+              <div v-if="row.images && row.images.length > 0" class="mt-4 border-t pt-4">
+                <h5 class="text-sm font-semibold mb-2">产品图片</h5>
+                <div class="flex flex-wrap gap-2">
+                  <el-image
+                    v-for="(image, imgIndex) in row.images.slice(0, 6)"
+                    :key="imgIndex"
+                    :src="image.startsWith('http') ? image : `/api${image}`"
+                    fit="cover"
+                    class="w-16 h-16 object-cover rounded cursor-pointer hover:opacity-80 transition-opacity"
+                    :preview-src-list="row.images.map(img => img.startsWith('http') ? img : `/api${img}`)"
+                    :initial-index="imgIndex"
+                    preview-teleported
+                  />
+                  <span v-if="row.images.length > 6" class="w-16 h-16 flex items-center justify-center bg-gray-100 rounded text-xs text-slate-500">
+                    +{{ row.images.length - 6 }}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </template>
+        </el-table-column>
+
+        <template v-if="filters.workflow_type === 'sample'">
+          <!-- 图片放第一 -->
+          <el-table-column label="图片" width="80">
+            <template #default="{ row }">
+              <div v-if="row.images && row.images.length > 0" class="flex gap-1">
+                <el-image v-for="(img, index) in row.images.slice(0, 2)" :key="index"
+                  :src="img.startsWith('http') ? img : img.startsWith('/media') ? img : `/api${img}`"
+                  :preview-src-list="row.images.map(i => i.startsWith('http') ? i : i.startsWith('/media') ? i : `/api${i}`)"
+                  :initial-index="index" fit="cover" class="w-10 h-10 rounded border cursor-pointer" @error="handleImageLoadError" />
+              </div>
+              <span v-else class="text-xs text-slate-400">无</span>
+            </template>
+          </el-table-column>
+          <!-- 平台方放第二 - 双星使用 selected_platform -->
+          <el-table-column label="平台方" width="90">
+            <template #default="{ row }">{{ row.selected_platform || '-' }}</template>
+          </el-table-column>
+          <el-table-column label="报备ID" width="90">
+            <template #default="{ row }">{{ row.report_id || '-' }}</template>
+          </el-table-column>
+          <el-table-column label="货号" width="90">
+            <template #default="{ row }">{{ row.article_number || '-' }}</template>
+          </el-table-column>
+          <el-table-column label="当前阶段" width="120">
+            <template #default="{ row }">
+              <span :class="['text-sm font-medium', row.current_stage === 'eliminated' ? 'text-red-600' : 'text-blue-600']">{{ getStageName(row.current_stage) }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="部门审批人" width="90">
+            <template #default="{ row }">{{ row.approver_name || '-' }}</template>
+          </el-table-column>
+          <el-table-column label="申请人" width="70">
+            <template #default="{ row }">{{ row.applicant_name || '-' }}</template>
+          </el-table-column>
+          <el-table-column label="申请时间" width="130">
+            <template #default="{ row }">
+              <span class="text-xs text-slate-500">{{ formatDateTime(row.application_time) }}</span>
+            </template>
+          </el-table-column>
+        </template>
+
+        <template v-if="filters.workflow_type === 'order'">
+          <el-table-column label="报备ID" width="90">
+            <template #default="{ row }">{{ row.report_id || '-' }}</template>
+          </el-table-column>
+          <el-table-column label="货号" width="90">
+            <template #default="{ row }">{{ row.article_number || '-' }}</template>
+          </el-table-column>
+          <el-table-column label="当前阶段" width="120">
+            <template #default="{ row }">
+              <span class="text-sm font-medium text-blue-600">{{ getOrderStageName(row.order_stage) }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="跟单员" width="80">
+            <template #default="{ row }">{{ row.merchandiser_name || '-' }}</template>
+          </el-table-column>
+          <el-table-column label="操作" width="100" fixed="right" align="center">
+            <template #default="{ row }">
+              <el-button type="primary" link size="small" @click="viewDetail(row)">详情</el-button>
+              <el-popconfirm title="确定删除？" @confirm="deleteWorkflowItem(row)">
+                <template #reference><el-button type="danger" link size="small">删除</el-button></template>
+              </el-popconfirm>
+            </template>
+          </el-table-column>
+        </template>
+
+        <template v-if="filters.workflow_type === 'production'">
+          <el-table-column label="报备ID" width="90">
+            <template #default="{ row }">{{ row.report_id || '-' }}</template>
+          </el-table-column>
+          <el-table-column label="货号" width="90">
+            <template #default="{ row }">{{ row.article_number || '-' }}</template>
+          </el-table-column>
+          <el-table-column label="当前阶段" width="120">
+            <template #default="{ row }">
+              <span class="text-sm font-medium text-blue-600">{{ getProductionStageName(row.production_stage) }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="跟单" width="80">
+            <template #default="{ row }">{{ row.merchandiser_name || '-' }}</template>
+          </el-table-column>
+          <el-table-column label="供应商" width="100">
+            <template #default="{ row }">{{ row.supplier || '-' }}</template>
+          </el-table-column>
+          <el-table-column label="仓储方" width="100">
+            <template #default="{ row }">{{ row.order_warehouse || '-' }}</template>
+          </el-table-column>
+          <el-table-column label="工厂款号" width="120">
+            <template #default="{ row }">
+              <span v-if="row.order_items && row.order_items.length > 0">
+                {{ row.order_items.map(item => item.factory_style_number).filter(Boolean).join(', ') || '-' }}
+              </span>
+              <span v-else>-</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="150" fixed="right" align="center">
+            <template #default="{ row }">
+              <el-button type="primary" link size="small" @click="viewDetail(row)">详情</el-button>
+              <el-popconfirm title="确定删除？" @confirm="deleteWorkflowItem(row)">
+                <template #reference><el-button type="danger" link size="small">删除</el-button></template>
+              </el-popconfirm>
+              <el-button type="success" link size="small" @click="handleProductionInbound(row)">入库</el-button>
+            </template>
+          </el-table-column>
+        </template>
+
+        <template v-if="filters.workflow_type === 'sample'">
+          <el-table-column label="图片" width="80">
+            <template #default="{ row }">
+              <div v-if="row.images && row.images.length > 0" class="flex gap-1">
+                <el-image v-for="(img, index) in row.images.slice(0, 2)" :key="index"
+                  :src="img.startsWith('http') ? img : img.startsWith('/media') ? img : `/api${img}`"
+                  :preview-src-list="row.images.map(i => i.startsWith('http') ? i : i.startsWith('/media') ? i : `/api${i}`)"
+                  :initial-index="index" fit="cover" class="w-10 h-10 rounded border cursor-pointer" @error="handleImageLoadError" />
+              </div>
+              <span v-else class="text-xs text-slate-400">无</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="100" fixed="right" align="center">
+            <template #default="{ row }">
+              <el-button type="primary" link size="small" @click="viewDetail(row)">详情</el-button>
+              <el-popconfirm title="确定删除？" @confirm="deleteWorkflowItem(row)">
+                <template #reference><el-button type="danger" link size="small">删除</el-button></template>
+              </el-popconfirm>
+            </template>
+          </el-table-column>
+        </template>
+      </el-table>
+
+      <div class="mt-5 flex justify-end">
+        <el-pagination background layout="total, prev, pager, next, sizes"
+          :current-page="pagination.page" :page-size="pagination.page_size"
+          :page-sizes="[8, 12, 20, 30]" :total="pagination.total"
+          @current-change="loadWorkflows" @size-change="handleSizeChange" />
+      </div>
+    </section>
+
+    <!-- 发起工作流对话框 -->
+    <el-dialog v-model="createDialogVisible" title="发起工作流 - 双星" width="800px">
+      <el-form ref="createFormRef" :model="createForm" :rules="createRules" label-position="top">
+        <div class="grid gap-4 md:grid-cols-2">
+          <el-form-item label="报备ID" prop="report_id">
+            <el-input v-model="createForm.report_id" placeholder="请输入报备ID" />
+          </el-form-item>
+          <el-form-item label="货号" prop="article_number">
+            <el-input v-model="createForm.article_number" placeholder="请输入货号" />
+          </el-form-item>
+          <el-form-item label="双星系统提报是否通过" prop="ds_system_approval">
+            <el-select v-model="createForm.ds_system_approval" class="w-full" placeholder="请选择">
+              <el-option label="是" value="是" />
+              <el-option label="否" value="否" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="品牌" prop="ds_brand">
+            <el-input v-model="createForm.ds_brand" placeholder="请输入品牌" />
+          </el-form-item>
+          <el-form-item label="下单颜色" prop="order_color">
+            <el-input v-model="createForm.order_color" placeholder="请输入下单颜色" />
+          </el-form-item>
+          <el-form-item label="数量" prop="quantity">
+            <el-input-number v-model="createForm.quantity" class="w-full" :min="0" placeholder="请输入数量" />
+          </el-form-item>
+          <el-form-item label="选中平台" prop="selected_platform">
+            <el-select v-model="createForm.selected_platform" class="w-full" placeholder="请选择平台">
+              <el-option label="淘宝" value="淘宝" />
+              <el-option label="京东" value="京东" />
+              <el-option label="拼多多" value="拼多多" />
+              <el-option label="抖音" value="抖音" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="适用季节" prop="applicable_season">
+            <el-select v-model="createForm.applicable_season" class="w-full" placeholder="请选择适用季节">
+              <el-option label="春季" value="春季" />
+              <el-option label="夏季" value="夏季" />
+              <el-option label="秋季" value="秋季" />
+              <el-option label="冬季" value="冬季" />
+              <el-option label="全季" value="全季" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="鞋子分类" prop="shoe_category">
+            <el-select v-model="createForm.shoe_category" class="w-full" placeholder="请选择鞋子分类">
+              <el-option label="单鞋" value="单鞋" />
+              <el-option label="网鞋" value="网鞋" />
+              <el-option label="棉鞋" value="棉鞋" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="鞋底材质" prop="sole_material">
+            <el-input v-model="createForm.sole_material" placeholder="请输入鞋底材质" />
+          </el-form-item>
+          <el-form-item label="鞋垫（跟单）" prop="shoe_insole">
+            <el-input v-model="createForm.shoe_insole" placeholder="请输入鞋垫" />
+          </el-form-item>
+          <el-form-item label="款式来源（跟单）" prop="style_source">
+            <el-input v-model="createForm.style_source" placeholder="请输入款式来源" />
+          </el-form-item>
+        </div>
+        <el-form-item label="上传图片" prop="images">
+          <el-upload action="/api/business/workflows/upload-image/"
+            :headers="{ 'Authorization': `Bearer ${authStore.state.accessToken}` }"
+            :on-success="handleImageSuccess" :on-error="handleImageError" :on-remove="handleImageRemove"
+            :file-list="imageFileList" list-type="picture-card" multiple name="file">
+            <el-icon><Plus /></el-icon>
+            <template #tip><div class="el-upload__tip">支持上传多张图片</div></template>
+          </el-upload>
+        </el-form-item>
+        <el-form-item label="选择部门审批人" prop="approver">
+          <el-select v-model="createForm.approver" class="w-full" placeholder="请选择审批人">
+            <el-option v-for="u in users" :key="u.id" :label="u.nickname" :value="u.id" />
+          </el-select>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="createDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="submitting" @click="submitCreateForm">确定</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 工作流详情对话框 -->
+    <el-dialog v-model="detailDialogVisible" title="工作流详情" width="900px" top="3vh">
+      <div v-if="currentWorkflow" class="space-y-4 max-h-[70vh] overflow-y-auto">
+        <div class="border-b pb-4">
+          <h4 class="text-lg font-semibold mb-3">基本信息</h4>
+          <div class="grid grid-cols-3 gap-4">
+            <div><p class="text-sm text-slate-500">报备ID</p><p class="font-medium">{{ currentWorkflow.report_id || '-' }}</p></div>
+            <div><p class="text-sm text-slate-500">货号</p><p class="font-medium">{{ currentWorkflow.article_number || '-' }}</p></div>
+            <div><p class="text-sm text-slate-500">双星系统提报是否通过</p><p class="font-medium">{{ currentWorkflow.ds_system_approval || '-' }}</p></div>
+            <div><p class="text-sm text-slate-500">品牌</p><p class="font-medium">{{ currentWorkflow.ds_brand || '-' }}</p></div>
+            <div><p class="text-sm text-slate-500">下单颜色</p><p class="font-medium">{{ currentWorkflow.order_color || '-' }}</p></div>
+            <div><p class="text-sm text-slate-500">数量</p><p class="font-medium">{{ currentWorkflow.quantity || '-' }}</p></div>
+            <div><p class="text-sm text-slate-500">选中平台</p><p class="font-medium">{{ currentWorkflow.selected_platform || '-' }}</p></div>
+            <div><p class="text-sm text-slate-500">适用季节</p><p class="font-medium">{{ currentWorkflow.applicable_season || '-' }}</p></div>
+            <div><p class="text-sm text-slate-500">鞋子分类</p><p class="font-medium">{{ currentWorkflow.shoe_category || '-' }}</p></div>
+            <div><p class="text-sm text-slate-500">鞋底材质</p><p class="font-medium">{{ currentWorkflow.sole_material || '-' }}</p></div>
+            <div><p class="text-sm text-slate-500">鞋垫</p><p class="font-medium">{{ currentWorkflow.shoe_insole || '-' }}</p></div>
+            <div><p class="text-sm text-slate-500">款式来源</p><p class="font-medium">{{ currentWorkflow.style_source || '-' }}</p></div>
+            <div><p class="text-sm text-slate-500">状态</p>
+              <el-tag :type="statusTypeMap[currentWorkflow.status] || 'info'" effect="light">
+                {{ statusTextMap[currentWorkflow.status] || currentWorkflow.status }}
+              </el-tag>
+            </div>
+            <div><p class="text-sm text-slate-500">当前阶段</p><p class="font-medium text-blue-600">{{ getStageName(currentWorkflow.current_stage) }}</p></div>
+          </div>
+          <div v-if="currentWorkflow.images && currentWorkflow.images.length > 0" class="mt-4">
+            <p class="text-sm text-slate-500">产品图片</p>
+            <div class="flex flex-wrap gap-2 mt-2">
+              <el-image v-for="(image, index) in currentWorkflow.images" :key="index"
+                :src="image.startsWith('http') ? image : image.startsWith('/media') ? image : `/api${image}`" fit="cover"
+                class="w-24 h-24 object-cover rounded"
+                :preview-src-list="currentWorkflow.images.map(img => img.startsWith('http') ? img : img.startsWith('/media') ? img : `/api${img}`)"
+                :initial-index="index" preview-teleported @error="handleImageLoadError" />
+            </div>
+          </div>
+        </div>
+
+        <div v-if="currentWorkflow.white_background_images && currentWorkflow.white_background_images.length > 0" class="border-b pb-4">
+          <h4 class="text-lg font-semibold mb-3">白底照片</h4>
+          <div class="flex flex-wrap gap-2">
+            <el-image v-for="(image, index) in currentWorkflow.white_background_images" :key="'wb'+index"
+              :src="image.startsWith('http') ? image : image.startsWith('/media') ? image : `/api${image}`" fit="cover"
+              class="w-24 h-24 object-cover rounded"
+              :preview-src-list="currentWorkflow.white_background_images.map(img => img.startsWith('http') ? img : img.startsWith('/media') ? img : `/api${img}`)"
+              :initial-index="index" preview-teleported @error="handleImageLoadError" />
+          </div>
+        </div>
+
+        <div v-if="currentWorkflow.try_on_report && currentWorkflow.try_on_report.length > 0" class="border-b pb-4">
+          <h4 class="text-lg font-semibold mb-3">试穿报告</h4>
+          <div class="space-y-2">
+            <div v-for="(file, index) in currentWorkflow.try_on_report" :key="'tr'+index" class="flex items-center gap-2 p-2 bg-gray-50 rounded">
+              <span class="text-sm">文件 {{ index + 1 }}</span>
+              <a :href="file.startsWith('http') ? file : file.startsWith('/media') ? file : `/api${file}`" target="_blank" class="text-blue-600 hover:underline text-sm">查看/下载</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="border-b pb-4">
+          <h4 class="text-lg font-semibold mb-3">工作流进度</h4>
+          <div v-if="currentWorkflow.current_stage === 'eliminated'" class="p-4 bg-red-50 border border-red-200 rounded-lg mb-3">
+            <div class="flex items-center gap-2 text-red-600">
+              <span class="font-semibold">流程已淘汰</span>
+            </div>
+            <p v-if="currentWorkflow.eliminate_reason" class="text-sm text-red-500 mt-1">原因：{{ currentWorkflow.eliminate_reason }}</p>
+            <p v-if="currentWorkflow.eliminator_name" class="text-sm text-red-500">淘汰人：{{ currentWorkflow.eliminator_name }}</p>
+            <p v-if="currentWorkflow.eliminate_time" class="text-sm text-red-500">淘汰时间：{{ formatDateTime(currentWorkflow.eliminate_time) }}</p>
+          </div>
+          <div class="space-y-3">
+            <div v-for="(step, idx) in (currentWorkflow.workflow_type === 'order' ? orderStages : dsStages)" :key="idx"
+                 :class="['p-3 rounded-lg border', getStageStatus(currentWorkflow, step.stage) === 'completed' ? 'bg-green-50 border-green-200' : getStageStatus(currentWorkflow, step.stage) === 'current' ? 'bg-blue-50 border-blue-200' : getStageStatus(currentWorkflow, step.stage) === 'rejected' ? 'bg-red-50 border-red-200' : 'bg-gray-50 border-gray-200']">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <div :class="['w-7 h-7 rounded-full flex items-center justify-center text-xs font-medium',
+                    getStageStatus(currentWorkflow, step.stage) === 'completed' ? 'bg-green-500 text-white' :
+                    getStageStatus(currentWorkflow, step.stage) === 'current' ? 'bg-blue-500 text-white' :
+                    getStageStatus(currentWorkflow, step.stage) === 'rejected' ? 'bg-red-500 text-white' : 'bg-gray-200 text-gray-500']">
+                    {{ getStageStatus(currentWorkflow, step.stage) === 'completed' ? '✓' : getStageStatus(currentWorkflow, step.stage) === 'current' ? '●' : idx + 1 }}
+                  </div>
+                  <span class="font-medium">{{ step.name }}</span>
+                  <span v-if="step.handler" class="text-xs text-slate-400">（{{ getHandlerName(currentWorkflow, step.stage) }}）</span>
+                </div>
+                <el-tag :type="getStageStatus(currentWorkflow, step.stage) === 'completed' ? 'success' : getStageStatus(currentWorkflow, step.stage) === 'current' ? 'warning' : getStageStatus(currentWorkflow, step.stage) === 'rejected' ? 'danger' : 'info'" size="small">
+                  {{ getStageStatus(currentWorkflow, step.stage) === 'completed' ? '已完成' : getStageStatus(currentWorkflow, step.stage) === 'current' ? '进行中' : getStageStatus(currentWorkflow, step.stage) === 'rejected' ? '已淘汰' : '待处理' }}
+                </el-tag>
+              </div>
+
+              <!-- 当前阶段的操作按钮 -->
+              <div v-if="getStageStatus(currentWorkflow, step.stage) === 'current' && canOperateAtStage(currentWorkflow, step.stage)" class="mt-3 ml-9 flex gap-2">
+                <el-button type="primary" size="small" :loading="submitting" @click="handleStageConfirm(step.stage, currentWorkflow)">{{ getConfirmButtonText(currentWorkflow, step.stage) }}</el-button>
+                <!-- 样品对接流程：阶段3可以淘汰，其他阶段可以拒绝（退回上一步） -->
+                <el-button v-if="currentWorkflow?.workflow_type === 'sample' && String(step.stage) !== '1'" :type="step.stage === '3' ? 'danger' : 'warning'" size="small" @click="handleReject">{{ step.stage === '3' ? '淘汰（不做了）' : '拒绝（退回上一步）' }}</el-button>
+                <!-- 订单处理流程：阶段2-4可以拒绝（退回上一步） -->
+                <el-button v-if="currentWorkflow?.workflow_type === 'order' && step.stage >= 2 && step.stage <= 4" type="warning" size="small" @click="handleOrderReject">拒绝（退回上一步）</el-button>
+              </div>
+
+              <div v-if="(getStageStatus(currentWorkflow, step.stage) === 'completed' || getStageStatus(currentWorkflow, step.stage) === 'rejected') && step.stageInfo" class="mt-2 ml-9 text-sm text-slate-600">
+                <div v-html="getStageInfoHtml(currentWorkflow, step.stage)"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <template #footer>
+        <el-button @click="detailDialogVisible = false">关闭</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 部门审批人审核对话框 -->
+    <el-dialog v-model="approveDialogVisible" :title="actionDialogTitle" width="600px">
+      <el-form ref="actionFormRef" :model="actionForm" label-position="top">
+        <template v-if="String(currentWorkflow?.current_stage) === '1' && currentWorkflow?.workflow_type !== 'order'">
+          <el-form-item label="选择供应商" prop="supplier" :rules="[{ required: true, message: '请选择供应商', trigger: 'change' }]">
+            <el-select v-model="actionForm.supplier" class="w-full" placeholder="请选择供应商" @change="onSupplierChange" clearable>
+              <el-option v-for="s in suppliers" :key="s.supplier_name" :label="s.supplier_name" :value="s.supplier_name" />
+              <template v-if="suppliers.length === 0">
+                <div class="text-center py-2 text-gray-500">暂无供应商数据，请先添加供应商</div>
+              </template>
+            </el-select>
+          </el-form-item>
+          <el-form-item label="跟单员（自动获取）">
+            <el-input :model-value="actionForm.merchandiser_name" disabled placeholder="根据供应商自动获取" />
+          </el-form-item>
+          <el-form-item label="备注（选填）">
+            <el-input v-model="actionForm.comments" type="textarea" :rows="2" placeholder="请输入备注" />
+          </el-form-item>
+        </template>
+
+        <!-- 样品对接流程 - 阶段2：跟单员下样品单 -->
+        <template v-if="currentWorkflow?.workflow_type === 'sample' && String(currentWorkflow?.current_stage) === '2'">
+          <el-form-item label="预计完成时间" prop="expected_completion_time" :rules="[{ required: true, message: '请选择预计完成时间', trigger: 'change' }]">
+            <el-date-picker v-model="actionForm.expected_completion_time" class="w-full" type="date" value-format="YYYY-MM-DD" placeholder="请选择预计完成时间" />
+          </el-form-item>
+          <el-form-item label="适配期货/现货-季节" prop="futures_spot_season">
+            <el-input v-model="actionForm.futures_spot_season" placeholder="请输入适配期货/现货-季节" />
+          </el-form-item>
+          <el-form-item label="选择摄影师" prop="photographer" :rules="[{ required: true, message: '请选择摄影师', trigger: 'change' }]">
+            <el-select v-model="actionForm.photographer" class="w-full" placeholder="请选择摄影师">
+              <el-option v-for="u in allUsers" :key="u.id" :label="u.nickname" :value="u.id" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="备注（选填）">
+            <el-input v-model="actionForm.comments" type="textarea" :rows="2" placeholder="请输入备注" />
+          </el-form-item>
+        </template>
+
+        <template v-if="String(currentWorkflow?.current_stage) === '4'">
+          <el-form-item label="上传白底照片">
+            <el-upload action="/api/business/workflows/upload-image/"
+              :headers="{ 'Authorization': `Bearer ${authStore.state.accessToken}` }"
+              :on-success="handleWhiteBgSuccess" :on-remove="handleWhiteBgRemove"
+              :file-list="whiteBgFileList" list-type="picture-card" multiple name="file">
+              <el-icon><Plus /></el-icon>
+            </el-upload>
+          </el-form-item>
+          <el-form-item label="备注（选填）">
+            <el-input v-model="actionForm.comments" type="textarea" :rows="2" placeholder="请输入备注" />
+          </el-form-item>
+        </template>
+
+        <template v-if="String(currentWorkflow?.current_stage) === '5'">
+          <div class="grid gap-4 md:grid-cols-2">
+            <el-form-item label="初期报价（跟单）" prop="initial_price" :rules="[{ required: true, message: '请输入初期报价', trigger: 'blur' }]">
+              <el-input-number v-model="actionForm.initial_price" class="w-full" :precision="2" :min="0" />
+            </el-form-item>
+            <el-form-item label="最终价格" prop="final_price" :rules="[{ required: true, message: '请输入最终价格', trigger: 'blur' }]">
+              <el-input-number v-model="actionForm.final_price" class="w-full" :precision="2" :min="0" />
+            </el-form-item>
+            <el-form-item label="价格明细" class="md:col-span-2">
+              <el-input v-model="actionForm.price_details" type="textarea" :rows="2" placeholder="请输入价格明细" />
+            </el-form-item>
+            <el-form-item label="价格是否提交">
+              <el-select v-model="actionForm.price_submitted" class="w-full" placeholder="请选择">
+                <el-option label="是" value="是" /><el-option label="否" value="否" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="价格提交日期">
+              <el-date-picker v-model="actionForm.price_submit_date" class="w-full" type="date" value-format="YYYY-MM-DD" />
+            </el-form-item>
+            <el-form-item label="价格审批是否完成">
+              <el-select v-model="actionForm.price_approval_completed" class="w-full" placeholder="请选择">
+                <el-option label="是" value="是" /><el-option label="否" value="否" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="未下单原因">
+              <el-input v-model="actionForm.unordered_reason" placeholder="请输入未下单原因" />
+            </el-form-item>
+            <el-form-item label="双星6张图是否上传">
+              <el-select v-model="actionForm.ds_six_images_uploaded" class="w-full" placeholder="请选择">
+                <el-option label="是" value="是" /><el-option label="否" value="否" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="双星6张图是否合格">
+              <el-select v-model="actionForm.ds_six_images_qualified" class="w-full" placeholder="请选择">
+                <el-option label="是" value="是" /><el-option label="否" value="否" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="选择价格核算人员" prop="price_calculator" :rules="[{ required: true, message: '请选择价格核算人员', trigger: 'change' }]">
+              <el-select v-model="actionForm.price_calculator" class="w-full" placeholder="请选择价格核算人员">
+                <el-option v-for="u in allUsers" :key="u.id" :label="u.nickname" :value="u.id" />
+              </el-select>
+            </el-form-item>
+          </div>
+        </template>
+
+        <template v-if="String(currentWorkflow?.current_stage) === '6'">
+          <div class="mb-4 p-3 bg-gray-50 rounded">
+            <p class="text-sm text-slate-500 mb-1">初价信息</p>
+            <p>初期报价：¥{{ currentWorkflow.initial_price || '-' }} | 最终价格：¥{{ currentWorkflow.final_price || '-' }}</p>
+            <p class="text-sm text-slate-500 mt-1">{{ currentWorkflow.price_details || '' }}</p>
+          </div>
+          <el-form-item label="选择文员" prop="clerk" :rules="[{ required: true, message: '请选择文员', trigger: 'change' }]">
+            <el-select v-model="actionForm.clerk" class="w-full" placeholder="请选择文员" clearable>
+              <el-option v-for="u in allUsers" :key="u.id" :label="u.nickname" :value="u.id" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="选择价格核算人员直属领导" prop="price_leader" :rules="[{ required: true, message: '请选择直属领导', trigger: 'change' }]">
+            <el-select v-model="actionForm.price_leader" class="w-full" placeholder="请选择直属领导" clearable>
+              <el-option v-for="u in allUsers" :key="u.id" :label="u.nickname" :value="u.id" />
+            </el-select>
+          </el-form-item>
+        </template>
+
+        <template v-if="String(currentWorkflow?.current_stage) === '9'">
+          <el-form-item label="上传试穿报告">
+            <el-upload action="/api/business/workflows/upload-image/"
+              :headers="{ 'Authorization': `Bearer ${authStore.state.accessToken}` }"
+              :on-success="handleReportSuccess" :on-remove="handleReportRemove"
+              :file-list="reportFileList" multiple name="file">
+              <el-button type="primary">上传文件</el-button>
+              <template #tip><div class="el-upload__tip">支持PDF、图片、Excel等文件</div></template>
+            </el-upload>
+          </el-form-item>
+        </template>
+
+        <template v-if="String(currentWorkflow?.current_stage) === '10'">
+          <div class="grid gap-4 md:grid-cols-2">
+            <el-form-item label="是否拍白底图">
+              <el-select v-model="actionForm.need_white_bg_photo" class="w-full" placeholder="请选择">
+                <el-option label="是" value="是" /><el-option label="否" value="否" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="白底图是否通过">
+              <el-select v-model="actionForm.white_bg_passed" class="w-full" placeholder="请选择">
+                <el-option label="是" value="是" /><el-option label="否" value="否" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="白底图未过说明" class="md:col-span-2">
+              <el-input v-model="actionForm.white_bg_fail_reason" placeholder="请输入白底图未过说明" />
+            </el-form-item>
+            <el-form-item label="是否有试穿报告">
+              <el-select v-model="actionForm.has_try_on_report" class="w-full" placeholder="请选择">
+                <el-option label="是" value="是" /><el-option label="否" value="否" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="辅料材质">
+              <el-input v-model="actionForm.accessory_material" placeholder="请输入辅料材质" />
+            </el-form-item>
+            <el-form-item label="是否下单">
+              <el-select v-model="actionForm.is_ordered" class="w-full" placeholder="请选择">
+                <el-option label="是" value="是" /><el-option label="否" value="否" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="下单日期">
+              <el-date-picker v-model="actionForm.ds_order_date" class="w-full" type="date" value-format="YYYY-MM-DD" />
+            </el-form-item>
+            <el-form-item label="寄拍日期">
+              <el-date-picker v-model="actionForm.photo_shoot_date" class="w-full" type="date" value-format="YYYY-MM-DD" />
+            </el-form-item>
+            <el-form-item label="寄拍备注" class="md:col-span-2">
+              <el-input v-model="actionForm.photo_shoot_remarks" type="textarea" :rows="2" placeholder="请输入寄拍备注" />
+            </el-form-item>
+          </div>
+        </template>
+
+        <template v-if="String(currentWorkflow?.current_stage) === '11'">
+          <el-form-item label="备注（选填）">
+            <el-input v-model="actionForm.comments" type="textarea" :rows="2" placeholder="请输入备注" />
+          </el-form-item>
+        </template>
+
+        <!-- 订单处理流程表单 -->
+        <template v-if="currentWorkflow?.workflow_type === 'order'">
+          <template v-if="currentWorkflow?.order_stage === 1">
+            <div class="bg-green-50 p-4 rounded-lg mb-4">
+              <h4 class="text-center font-semibold text-green-700">新款生产订单</h4>
+              <p class="text-center text-sm text-slate-500 mt-1">图片仅做参考，细节与跟单确定</p>
+            </div>
+
+            <div class="grid grid-cols-4 gap-4 mb-4">
+              <div>
+                <p class="text-sm text-slate-500">跟单</p>
+                <p class="font-medium">{{ currentWorkflow?.merchandiser_name || '-' }}</p>
+              </div>
+              <div>
+                <p class="text-sm text-slate-500">下单日期</p>
+                <p class="font-medium">{{ formatDateTime(new Date()).split(' ')[0] }}</p>
+              </div>
+              <div>
+                <p class="text-sm text-slate-500">供应商</p>
+                <p class="font-medium">{{ currentWorkflow?.supplier || '-' }}</p>
+              </div>
+              <div>
+                <p class="text-sm text-slate-500">仓储方</p>
+                <el-input v-model="actionForm.warehouse" placeholder="请输入仓储方" class="w-full no-round" />
+              </div>
+            </div>
+
+            <div class="overflow-x-auto">
+              <table class="w-full border-collapse">
+                <thead>
+                  <tr class="bg-gray-100">
+                    <th class="border p-2 text-center" style="min-width: 160px;">工厂款号/图片</th>
+                    <th class="border p-2 text-center" style="min-width: 80px;">颜色</th>
+                    <th class="border p-2 text-center" style="min-width: 80px;">侧标</th>
+                    <th class="border p-2 text-center" style="min-width: 80px;">后柱织带</th>
+                    <th class="border p-2 text-center" style="min-width: 80px;">里子布</th>
+                    <th class="border p-2 text-center" style="min-width: 80px;">底材</th>
+                    <th class="border p-2 text-center" style="min-width: 100px;">商品编码</th>
+                    <th class="border p-2 text-center" style="min-width: 80px;">尺码</th>
+                    <th class="border p-2 text-center" style="min-width: 80px;">箱数</th>
+                    <th class="border p-2 text-center" style="min-width: 80px;">双数</th>
+                    <th class="border p-2 text-center" style="min-width: 80px;">总数</th>
+                    <th class="border p-2 text-center" style="min-width: 60px;">操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="(item, index) in actionForm.order_items" :key="index" class="hover:bg-gray-50">
+                    <td class="border p-2">
+                      <div class="flex items-center gap-2">
+                        <el-upload
+                          action="/api/business/workflows/upload-image/"
+                          :headers="{ 'Authorization': `Bearer ${authStore.state.accessToken}` }"
+                          :on-success="(response) => handleOrderItemImageSuccess(response, index)"
+                          class="w-12 h-12 border-dashed border-2 border-slate-300 rounded flex items-center justify-center cursor-pointer"
+                          accept="image/*"
+                        >
+                          <el-image v-if="item.image" :src="item.image" fit="cover" class="w-12 h-12 rounded" />
+                          <el-icon v-else><Plus /></el-icon>
+                        </el-upload>
+                        <el-input v-model="item.factory_style_number" placeholder="工厂款号" class="w-24" />
+                      </div>
+                    </td>
+                    <td class="border p-2"><input v-model="item.color" placeholder="颜色" style="width: 100%; padding: 4px; border: 1px solid #dcdfe6; border-radius: 4px;" /></td>
+                    <td class="border p-2"><input v-model="item.side_label" placeholder="侧标" style="width: 100%; padding: 4px; border: 1px solid #dcdfe6; border-radius: 4px;" /></td>
+                    <td class="border p-2"><input v-model="item.back_column_webbing" placeholder="后柱织带" style="width: 100%; padding: 4px; border: 1px solid #dcdfe6; border-radius: 4px;" /></td>
+                    <td class="border p-2"><input v-model="item.lining_cloth" placeholder="里子布" style="width: 100%; padding: 4px; border: 1px solid #dcdfe6; border-radius: 4px;" /></td>
+                    <td class="border p-2"><input v-model="item.bottom_material" placeholder="底材" style="width: 100%; padding: 4px; border: 1px solid #dcdfe6; border-radius: 4px;" /></td>
+                    <td class="border p-2"><input v-model="item.product_code" placeholder="商品编码" style="width: 100%; padding: 4px; border: 1px solid #dcdfe6; border-radius: 4px;" /></td>
+                    <td class="border p-2"><input v-model="item.size" placeholder="尺码" style="width: 100%; padding: 4px; border: 1px solid #dcdfe6; border-radius: 4px;" /></td>
+                    <td class="border p-2"><el-input-number v-model="item.box_count" :min="0" placeholder="箱数" /></td>
+                    <td class="border p-2"><el-input-number v-model="item.pair_count" :min="0" placeholder="双数" /></td>
+                    <td class="border p-2"><el-input-number v-model="item.total_count" :min="0" placeholder="总数" /></td>
+                    <td class="border p-2 text-center">
+                      <el-button type="primary" link @click="copyOrderItem(index)">复制</el-button>
+                      <el-button type="danger" link @click="removeOrderItem(index)">删除</el-button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="mt-3">
+              <el-button type="primary" @click="addOrderItem">添加行</el-button>
+            </div>
+          </template>
+
+          <template v-if="currentWorkflow?.order_stage === 2">
+            <div class="text-center py-4">
+              <el-checkbox v-model="actionForm.material_verified" size="large">确认材质无误</el-checkbox>
+            </div>
+          </template>
+
+          <template v-if="currentWorkflow?.order_stage === 3">
+            <el-form-item label="运营审核数据价格">
+              <el-input v-model="actionForm.comments" type="textarea" :rows="3" placeholder="请输入审核意见" />
+            </el-form-item>
+            <el-form-item label="选择部门领导" prop="order_leader" :rules="[{ required: true, message: '请选择部门领导', trigger: 'change' }]">
+              <el-select v-model="actionForm.order_leader" class="w-full" placeholder="请选择部门领导">
+                <el-option v-for="u in allUsers" :key="u.id" :label="u.nickname" :value="u.id" />
+              </el-select>
+            </el-form-item>
+          </template>
+
+          <template v-if="currentWorkflow?.order_stage === 4">
+            <el-form-item label="运营部门领导审核">
+              <el-input v-model="actionForm.comments" type="textarea" :rows="3" placeholder="请输入审核意见" />
+            </el-form-item>
+          </template>
+        </template>
+      </el-form>
+      <template #footer>
+        <el-button @click="approveDialogVisible = false">取消</el-button>
+        <el-button
+          type="primary"
+          :loading="submitting"
+          @click="handleConfirmClick">
+          确认
+        </el-button>
+        <!-- 拒绝按钮：样品对接阶段3（样品会确认）可以拒绝（淘汰） -->
+        <el-button v-if="currentWorkflow?.workflow_type === 'sample' && String(currentWorkflow?.current_stage) === '3'" type="danger" @click="handleReject">淘汰（不做）</el-button>
+        <!-- 拒绝按钮：订单处理阶段2-4可以拒绝（退回上一步） -->
+        <el-button v-if="currentWorkflow?.workflow_type === 'order' && currentWorkflow?.order_stage >= 2 && currentWorkflow?.order_stage <= 4" type="warning" @click="handleOrderReject">拒绝（退回上一步）</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 确认寄拍对话框 -->
+    <el-dialog v-model="photoShootDialogVisible" title="确认寄拍" width="400px">
+      <p class="mb-4">请选择是否需要寄拍：</p>
+      <div class="flex gap-3 justify-center">
+        <el-button type="primary" @click="submitPhotoShoot(false)">不需要寄拍</el-button>
+        <el-button type="warning" @click="showPhotoShootForm">需要寄拍</el-button>
+      </div>
+    </el-dialog>
+  </div>
+</template>
+
+<script setup>
+import { computed, onMounted, reactive, ref } from "vue"
+import { ElMessage, ElMessageBox } from "element-plus"
+import { Plus } from "@element-plus/icons-vue"
+import { formatDateTime } from "@/utils/formatters"
+import { getUsers } from "@/api/system"
+import { getWorkflows, getWorkflowDetail, createWorkflow, deleteWorkflow, updateWorkflowStatus, getSupplierMerchandisers } from "@/api/business"
+import { useAuthStore } from "@/store/auth"
+
+const props = defineProps({
+  embedded: { type: Boolean, default: false }
+})
+
+const authStore = useAuthStore()
+const userInfo = computed(() => authStore.state.user)
+
+const createFormRef = ref()
+const actionFormRef = ref()
+const createDialogVisible = ref(false)
+const detailDialogVisible = ref(false)
+const approveDialogVisible = ref(false)
+const photoShootDialogVisible = ref(false)
+const loading = ref(false)
+const submitting = ref(false)
+const workflows = ref([])
+const users = ref([])
+const allUsers = ref([])
+const suppliers = ref([])
+const currentWorkflow = ref(null)
+const imageFileList = ref([])
+const whiteBgFileList = ref([])
+const reportFileList = ref([])
+const currentBrand = ref("全部")
+const actionDialogTitle = ref("")
+const filters = reactive({ q: "", workflow_type: "sample", merchandiser: null, platform: null, development_rhythm: null })
+const pagination = reactive({ page: 1, page_size: 8, total: 0 })
+
+const statusTypeMap = { pending: "info", in_progress: "warning", completed: "success", rejected: "danger" }
+const statusTextMap = { pending: "待处理", in_progress: "进行中", completed: "已完成", rejected: "已拒绝" }
+
+const dsStages = [
+  { stage: 1, name: "部门审批人审核", handler: true, stageInfo: true },
+  { stage: 2, name: "跟单员下样品单", handler: true, stageInfo: true },
+  { stage: 3, name: "样品会确认", handler: true, stageInfo: false },
+  { stage: 4, name: "摄影部过白底", handler: true, stageInfo: true },
+  { stage: 5, name: "填写初价", handler: true, stageInfo: true },
+  { stage: 6, name: "核算价格", handler: true, stageInfo: true },
+  { stage: 7, name: "审批核算价格", handler: true, stageInfo: false },
+  { stage: 8, name: "钉钉价格审批", handler: true, stageInfo: false },
+  { stage: 9, name: "上传试穿报告", handler: true, stageInfo: true },
+  { stage: 10, name: "确认寄拍", handler: true, stageInfo: true },
+  { stage: 11, name: "文员审核", handler: true, stageInfo: false },
+]
+
+const orderStages = [
+  { stage: 1, name: "电子订单制作", handler: true, stageInfo: true },
+  { stage: 2, name: "业务审核材质", handler: true, stageInfo: true },
+  { stage: 3, name: "运营审核数据价格", handler: true, stageInfo: true },
+  { stage: 4, name: "运营部门领导审核", handler: true, stageInfo: true },
+]
+
+const createForm = reactive({
+  images: [], report_id: "", article_number: "",
+  ds_system_approval: "", ds_brand: "", order_color: "", quantity: null,
+  selected_platform: "", applicable_season: "", shoe_category: "",
+  sole_material: "", shoe_insole: "", style_source: "", approver: ""
+})
+
+const createRules = {
+  approver: [{ required: true, message: "请选择审批人", trigger: "change" }]
+}
+
+const actionForm = reactive({
+  supplier: "", merchandiser_name: "", comments: "",
+  expected_completion_time: "", futures_spot_season: "", photographer: null,
+  white_background_images: [],
+  initial_price: null, final_price: null, price_details: "",
+  price_submitted: "", price_submit_date: "", price_approval_completed: "",
+  unordered_reason: "", ds_six_images_uploaded: "", ds_six_images_qualified: "",
+  price_calculator: null, clerk: null, price_leader: null,
+  try_on_report: [],
+  need_white_bg_photo: "", white_bg_passed: "", white_bg_fail_reason: "",
+  has_try_on_report: "", accessory_material: "", is_ordered: "",
+  ds_order_date: "", photo_shoot_date: "", photo_shoot_remarks: "",
+  // 订单处理字段
+  order_items: [], warehouse: "",
+  // 运营审核数据价格选择部门领导
+  order_leader: null
+})
+
+function resetActionForm() {
+  Object.assign(actionForm, {
+    supplier: "", merchandiser_name: "", comments: "",
+    expected_completion_time: "", futures_spot_season: "", photographer: null,
+    white_background_images: [],
+    initial_price: null, final_price: null, price_details: "",
+    price_submitted: "", price_submit_date: "", price_approval_completed: "",
+    unordered_reason: "", ds_six_images_uploaded: "", ds_six_images_qualified: "",
+    price_calculator: null, clerk: null, price_leader: null,
+    try_on_report: [],
+    need_white_bg_photo: "", white_bg_passed: "", white_bg_fail_reason: "",
+    has_try_on_report: "", accessory_material: "", is_ordered: "",
+    ds_order_date: "", photo_shoot_date: "", photo_shoot_remarks: "",
+    // 订单处理字段
+    order_items: [],
+    warehouse: ""
+  })
+  whiteBgFileList.value = []
+  reportFileList.value = []
+}
+
+// 订单处理相关方法
+function addOrderItem() {
+  actionForm.order_items.push({
+    factory_style_number: '',
+    color: '',
+    side_label: '',
+    back_column_webbing: '',
+    lining_cloth: '',
+    bottom_material: '',
+    product_code: '',
+    size: '',
+    box_count: 0,
+    pair_count: 0,
+    total_count: 0,
+    image: ''
+  })
+}
+
+function removeOrderItem(index) {
+  actionForm.order_items.splice(index, 1)
+}
+
+function copyOrderItem(index) {
+  const itemToCopy = actionForm.order_items[index]
+  const newItem = { ...itemToCopy }
+  actionForm.order_items.splice(index + 1, 0, newItem)
+  ElMessage.success('已复制一行')
+}
+
+function handleOrderItemImageSuccess(response, index) {
+  if (response.success) {
+    actionForm.order_items_list[index].image = response.data.url
+    ElMessage.success('图片上传成功')
+  } else {
+    ElMessage.error(response.message || '上传失败')
+  }
+}
+
+function handleImageSuccess(response) {
+  if (response.success) {
+    createForm.images.push(response.data.url)
+    ElMessage.success('上传成功')
+    console.log('[handleImageSuccess] 图片上传成功:', response.data.url)
+  } else {
+    ElMessage.error(response.message || '上传失败')
+    console.error('[handleImageSuccess] 上传失败:', response)
+  }
+}
+
+function handleImageRemove(file, fileList) {
+  const index = createForm.images.indexOf(file.url)
+  if (index > -1) {
+    createForm.images.splice(index, 1)
+  }
+  console.log('[handleImageRemove] 图片移除:', file.url)
+}
+
+function handleImageError(error) {
+  console.error('[handleImageError] 上传错误:', error)
+  ElMessage.error('图片上传失败')
+}
+
+function handleWhiteBgSuccess(response) {
+  if (response.success) {
+    actionForm.white_background_images.push(response.data.url)
+    whiteBgFileList.value.push({
+      name: response.data.filename || '白底图',
+      url: response.data.url
+    })
+    ElMessage.success('白底图上传成功')
+    console.log('[handleWhiteBgSuccess] 白底图上传成功:', response.data.url)
+  } else {
+    ElMessage.error(response.message || '上传失败')
+    console.error('[handleWhiteBgSuccess] 上传失败:', response)
+  }
+}
+
+function handleWhiteBgRemove(file, fileList) {
+  const index = actionForm.white_background_images.indexOf(file.url)
+  if (index > -1) {
+    actionForm.white_background_images.splice(index, 1)
+  }
+  console.log('[handleWhiteBgRemove] 白底图移除:', file.url)
+}
+
+function handleReportSuccess(response) {
+  if (response.success) {
+    actionForm.try_on_report.push(response.data.url)
+    ElMessage.success('报告上传成功')
+    console.log('[handleReportSuccess] 报告上传成功:', response.data.url)
+  } else {
+    ElMessage.error(response.message || '上传失败')
+    console.error('[handleReportSuccess] 上传失败:', response)
+  }
+}
+
+function handleReportRemove(file, fileList) {
+  const index = actionForm.try_on_report.indexOf(file.url)
+  if (index > -1) {
+    actionForm.try_on_report.splice(index, 1)
+  }
+  console.log('[handleReportRemove] 报告移除:', file.url)
+}
+
+function handleImageLoadError(event) {
+  console.error('[handleImageLoadError] 图片加载失败:', event)
+}
+
+async function viewDetail(row) {
+  console.log('[viewDetail] 点击详情:', row)
+  try {
+    currentWorkflow.value = await getWorkflowDetail(row.id)
+    console.log('[viewDetail] 获取到详情:', currentWorkflow.value)
+    detailDialogVisible.value = true
+    console.log('[viewDetail] detailDialogVisible 设置为 true')
+  } catch (error) {
+    console.error('[viewDetail] 获取详情失败:', error)
+    ElMessage.error('获取详情失败')
+  }
+}
+
+function handleSizeChange(size) {
+  pagination.page_size = size
+  loadWorkflows(1)
+}
+
+async function loadUsers() {
+  try {
+    const res = await getUsers()
+    const userData = res.results || res
+    users.value = userData
+    allUsers.value = userData
+    console.log('[loadUsers] 用户列表加载成功:', users.value.length, '个用户')
+  } catch (error) {
+    console.error('[loadUsers] 加载用户失败:', error)
+    ElMessage.error('加载用户列表失败')
+  }
+}
+
+async function loadSuppliers() {
+  try {
+    const res = await getSupplierMerchandisers()
+    suppliers.value = res
+    console.log('[loadSuppliers] 供应商列表加载成功:', suppliers.value.length, '个供应商')
+  } catch (error) {
+    console.error('[loadSuppliers] 加载供应商失败:', error)
+    ElMessage.error('加载供应商列表失败')
+  }
+}
+
+// 大货生产入库
+async function handleProductionInbound(row) {
+  try {
+    await ElMessageBox.confirm('确认入库？', '确认操作', { type: 'warning' })
+    submitting.value = true
+    const payload = {
+      action: 'production_inbound',
+      production_stage: 1
+    }
+    const response = await updateWorkflowStatus(row.id, payload)
+    ElMessage.success(response.data?.message || '入库成功')
+    await loadWorkflows(pagination.page)
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('[handleProductionInbound] 入库失败:', error)
+      const errorMsg = error.response?.data?.message || error.message || '未知错误'
+      ElMessage.error('入库失败: ' + errorMsg)
+    }
+  } finally {
+    submitting.value = false
+  }
+}
+
+function onSupplierChange(supplierName) {
+  console.log('[onSupplierChange] 供应商变更:', supplierName)
+  const supplier = suppliers.value.find(s => s.supplier_name === supplierName)
+  if (supplier) {
+    actionForm.merchandiser_name = supplier.merchandiser_name || ''
+    console.log('[onSupplierChange] 自动获取跟单员:', actionForm.merchandiser_name)
+  } else {
+    actionForm.merchandiser_name = ''
+    console.warn('[onSupplierChange] 未找到供应商对应的跟单员')
+  }
+}
+
+async function deleteWorkflowItem(row) {
+  try { await deleteWorkflow(row.id); ElMessage.success("删除成功"); await loadWorkflows(pagination.page) }
+  catch { ElMessage.error("删除失败") }
+}
+
+// 加载工作流列表数据
+async function loadWorkflows(page = pagination.page) {
+  loading.value = true
+  try {
+    pagination.page = page
+    const params = {
+      page: pagination.page, page_size: pagination.page_size,
+      q: filters.q, workflow_type: filters.workflow_type,
+      merchandiser: filters.merchandiser,
+      platform: filters.platform, development_rhythm: filters.development_rhythm,
+      brand: 'double_star'
+    }
+    console.log('[loadWorkflows] 请求参数:', params)
+    const res = await getWorkflows(params)
+    console.log('[loadWorkflows] 响应结果:', res)
+    workflows.value = res.results
+    pagination.total = res.total
+    console.log('[loadWorkflows] 加载完成，共', workflows.value.length, '条记录')
+  } catch (error) {
+    console.error('[loadWorkflows] 加载失败:', error)
+    ElMessage.error('加载工作流列表失败')
+  } finally { loading.value = false }
+}
+
+function getStageName(stage) {
+  if (stage === 'eliminated') return '已淘汰'
+  const map = {
+    1: '部门审批人审核', 2: '跟单员下样品单', 3: '样品会确认', 4: '摄影部过白底',
+    5: '填写初价', 6: '核算价格', 7: '审批核算价格', 8: '钉钉价格审批',
+    9: '上传试穿报告', 10: '确认寄拍', 11: '文员审核', 12: '样品对接完成'
+  }
+  return map[stage] || stage
+}
+
+function getOrderStageName(orderStage) {
+  const map = { 1: '电子订单制作完成', 2: '业务审核材质完成', 3: '运营审核数据价格完成', 4: '运营部门领导审核完成' }
+  return map[orderStage] || '待处理'
+}
+
+function getProductionStageName(productionStage) {
+  const map = { 0: '待入库', 1: '已入库' }
+  return map[productionStage] || '待处理'
+}
+
+function getStageStatus(workflow, stage) {
+  // 订单处理使用order_stage，其他流程使用current_stage
+  const current = workflow.workflow_type === 'order' ? workflow.order_stage : workflow.current_stage
+  console.log('[getStageStatus] workflow_type:', workflow.workflow_type, 'order_stage:', workflow.order_stage, 'current_stage:', workflow.current_stage, 'current:', current, 'stage:', stage)
+  if (current === 'eliminated') {
+    const eliminatedAt = parseInt(workflow.eliminate_stage || '3')
+    if (stage === eliminatedAt) return 'rejected'
+    if (stage < eliminatedAt) return 'completed'
+    return 'pending'
+  }
+  const currentInt = parseInt(current)
+  if (isNaN(currentInt)) return 'pending'
+  if (currentInt > stage) return 'completed'
+  if (currentInt === stage) return 'current'
+  return 'pending'
+}
+
+function getHandlerName(workflow, stage) {
+  const map = {
+    1: workflow.approver_name, 2: workflow.merchandiser_name, 3: workflow.merchandiser_name,
+    4: workflow.photographer_name, 5: workflow.merchandiser_name, 6: workflow.price_calculator_name,
+    7: workflow.price_leader_name, 8: workflow.clerk_name, 9: workflow.merchandiser_name,
+    10: workflow.photographer_name, 11: workflow.clerk_name
+  }
+  // 订单处理的handler都是文员
+  if (workflow.workflow_type === 'order') {
+    return workflow.clerk_name || '-'
+  }
+  return map[stage] || '-'
+}
+
+function getStageInfoHtml(workflow, stage) {
+  const items = []
+  
+  // 订单处理阶段的显示信息
+  if (workflow.workflow_type === 'order') {
+    if (stage === 1) {
+      if (workflow.order_created_time) items.push(`下单日期：${formatDateTime(workflow.order_created_time).split(' ')[0]}`)
+      if (workflow.supplier) items.push(`供应商：${workflow.supplier}`)
+      if (workflow.order_warehouse) items.push(`仓储方：${workflow.order_warehouse}`)
+      if (workflow.order_items && workflow.order_items.length > 0) {
+        const itemCount = workflow.order_items.length
+        items.push(`订单明细：${itemCount}条`)
+        // 显示第一条的工厂款号作为示例
+        if (workflow.order_items[0]?.factory_style_number) {
+          items.push(`工厂款号：${workflow.order_items[0].factory_style_number}`)
+        }
+      }
+      if (workflow.order_created_time) items.push(`制作时间：${formatDateTime(workflow.order_created_time)}`)
+    } else if (stage === 2) {
+      if (workflow.order_material_comments) items.push(`审核意见：${workflow.order_material_comments}`)
+    } else if (stage === 3) {
+      if (workflow.order_data_comments) items.push(`审核意见：${workflow.order_data_comments}`)
+    } else if (stage === 4) {
+      if (workflow.order_leader_comments) items.push(`审核意见：${workflow.order_leader_comments}`)
+    }
+    return items.length ? items.join(' | ') : ''
+  }
+  
+  // 样品对接阶段的显示信息
+  if (stage === 1) {
+    if (workflow.supplier) items.push(`供应商：${workflow.supplier}`)
+    if (workflow.merchandiser_name) items.push(`跟单员：${workflow.merchandiser_name}`)
+    if (workflow.approval_comments) items.push(`备注：${workflow.approval_comments}`)
+  } else if (stage === 2) {
+    if (workflow.expected_completion_time) items.push(`预计完成时间：${workflow.expected_completion_time}`)
+    if (workflow.futures_spot_season) items.push(`适配期货/现货-季节：${workflow.futures_spot_season}`)
+    if (workflow.photographer_name) items.push(`摄影师：${workflow.photographer_name}`)
+    if (workflow.sample_order_remarks) items.push(`备注：${workflow.sample_order_remarks}`)
+  } else if (stage === 4) {
+    if (workflow.white_background_images?.length) items.push(`白底图：${workflow.white_background_images.length}张`)
+    if (workflow.photographer_comments) items.push(`备注：${workflow.photographer_comments}`)
+  } else if (stage === 5) {
+    if (workflow.initial_price) items.push(`初期报价：¥${workflow.initial_price}`)
+    if (workflow.final_price) items.push(`最终价格：¥${workflow.final_price}`)
+    if (workflow.price_details) items.push(`价格明细：${workflow.price_details}`)
+    if (workflow.price_submitted) items.push(`价格是否提交：${workflow.price_submitted}`)
+    if (workflow.price_submit_date) items.push(`价格提交日期：${workflow.price_submit_date}`)
+    if (workflow.price_approval_completed) items.push(`价格审批是否完成：${workflow.price_approval_completed}`)
+    if (workflow.unordered_reason) items.push(`未下单原因：${workflow.unordered_reason}`)
+    if (workflow.ds_six_images_uploaded) items.push(`双星6张图是否上传：${workflow.ds_six_images_uploaded}`)
+    if (workflow.ds_six_images_qualified) items.push(`双星6张图是否合格：${workflow.ds_six_images_qualified}`)
+    if (workflow.price_calculator_name) items.push(`核算人员：${workflow.price_calculator_name}`)
+  } else if (stage === 6) {
+    if (workflow.clerk_name) items.push(`文员：${workflow.clerk_name}`)
+    if (workflow.price_leader_name) items.push(`直属领导：${workflow.price_leader_name}`)
+  } else if (stage === 9) {
+    if (workflow.try_on_report?.length) {
+              const fileLinks = workflow.try_on_report.map(url => `<a href="${url.startsWith('http') ? url : url.startsWith('/media') ? url : '/api' + url}" target="_blank" class="text-blue-600 hover:underline">查看文件</a>`).join(' ')
+              items.push(`试穿报告（${workflow.try_on_report.length}个）：${fileLinks}`)
+            }
+  } else if (stage === 10) {
+    items.push(`是否寄拍：${workflow.need_photo_shoot || '-'}`)
+    if (workflow.need_photo_shoot === '是') {
+      if (workflow.need_white_bg_photo) items.push(`是否拍白底图：${workflow.need_white_bg_photo}`)
+      if (workflow.white_bg_passed) items.push(`白底图是否通过：${workflow.white_bg_passed}`)
+      if (workflow.white_bg_fail_reason) items.push(`白底图未过说明：${workflow.white_bg_fail_reason}`)
+      if (workflow.has_try_on_report) items.push(`是否有试穿报告：${workflow.has_try_on_report}`)
+      if (workflow.accessory_material) items.push(`辅料材质：${workflow.accessory_material}`)
+      if (workflow.is_ordered) items.push(`是否下单：${workflow.is_ordered}`)
+      if (workflow.ds_order_date) items.push(`下单日期：${workflow.ds_order_date}`)
+      if (workflow.photo_shoot_date) items.push(`寄拍日期：${workflow.photo_shoot_date}`)
+      if (workflow.photo_shoot_remarks) items.push(`寄拍备注：${workflow.photo_shoot_remarks}`)
+    }
+  }
+  return items.length ? items.join(' | ') : ''
+}
+
+function getWorkflowStages(workflow) {
+  // 根据workflow_type选择不同的阶段定义
+  const stages = workflow.workflow_type === 'order' ? orderStages : dsStages
+
+  if (workflow.current_stage === 'eliminated') {
+    return stages.map((s) => ({
+      name: s.name,
+      status: s.stage === 3 ? 'rejected' : s.stage < 3 ? 'completed' : 'pending',
+      handler: getHandlerName(workflow, s.stage)
+    }))
+  }
+  return stages.map((s) => ({
+    name: s.name,
+    status: getStageStatus(workflow, s.stage),
+    handler: getHandlerName(workflow, s.stage)
+  }))
+}
+
+function canOperate(workflow) {
+  if (!workflow) {
+    console.warn('[canOperate] 工作流对象为空')
+    return false
+  }
+
+  // 检查工作流状态
+  if (workflow.status === 'completed' || workflow.status === 'rejected' || workflow.current_stage === 'eliminated') {
+    return false
+  }
+
+  // 转换用户ID为数字，确保类型一致
+  const uid = Number(userInfo.value?.id)
+  if (!uid) {
+    console.warn('[canOperate] 用户ID未找到')
+    return false
+  }
+
+  // 转换阶段为字符串，确保比较一致
+  const stage = String(workflow.current_stage)
+
+  // 转换所有负责人ID为数字
+  const approverId = Number(workflow.approver)
+  const merchandiserId = Number(workflow.merchandiser)
+  const photographerId = Number(workflow.photographer)
+  const priceCalculatorId = Number(workflow.price_calculator)
+  const priceLeaderId = Number(workflow.price_leader)
+  const clerkId = Number(workflow.clerk)
+
+  // 打印调试信息
+  console.log('[canOperate] 权限检查:', {
+    stage,
+    uid,
+    approverId,
+    merchandiserId,
+    photographerId,
+    priceCalculatorId,
+    priceLeaderId,
+    clerkId,
+    '阶段1匹配': stage === '1' && approverId === uid,
+    '阶段2匹配': stage === '2' && merchandiserId === uid,
+    '阶段3匹配': stage === '3' && merchandiserId === uid,
+    '阶段4匹配': stage === '4' && photographerId === uid,
+    '阶段5匹配': stage === '5' && merchandiserId === uid,
+    '阶段6匹配': stage === '6' && priceCalculatorId === uid,
+    '阶段7匹配': stage === '7' && priceLeaderId === uid,
+    '阶段8匹配': stage === '8' && clerkId === uid,
+    '阶段9匹配': stage === '9' && merchandiserId === uid,
+    '阶段10匹配': stage === '10' && photographerId === uid,
+    '阶段11匹配': stage === '11' && clerkId === uid
+  })
+
+  // 检查各阶段权限（使用严格相等比较）
+  if (stage === '1' && approverId === uid) return true
+  if (stage === '2' && merchandiserId === uid) return true
+  if (stage === '3' && merchandiserId === uid) return true
+  if (stage === '4' && photographerId === uid) return true
+  if (stage === '5' && merchandiserId === uid) return true
+  if (stage === '6' && priceCalculatorId === uid) return true
+  if (stage === '7' && priceLeaderId === uid) return true
+  if (stage === '8' && clerkId === uid) return true
+  if (stage === '9' && merchandiserId === uid) return true
+  if (stage === '10' && photographerId === uid) return true
+  if (stage === '11' && clerkId === uid) return true
+
+  return false
+}
+
+function getConfirmButtonText(workflow) {
+  // 订单处理流程
+  if (workflow?.workflow_type === 'order') {
+    const orderStage = workflow?.order_stage
+    if (orderStage === 1) return '制作订单'
+    if (orderStage === 2) return '确认审核'
+    if (orderStage === 3) return '确认审核'
+    if (orderStage === 4) return '确认审核'
+    return '确认'
+  }
+  
+  // 样品对接流程
+  const stage = workflow?.current_stage
+  if (stage === '1') return '确认审核'
+  if (stage === '2') return '确认下单'
+  if (stage === '3') return '确认'
+  if (stage === '4') return '确认上传白底'
+  if (stage === '5') return '确认填写初价'
+  if (stage === '6') return '确认核算价格'
+  if (stage === '7') return '确认审批'
+  if (stage === '8') return '确认审批完成'
+  if (stage === '9') return '确认上传'
+  if (stage === '10') return '确认寄拍'
+  if (stage === '11') return '确认审核'
+  return '确认'
+}
+
+function canOperateAtStage(workflow, stageToCheck) {
+  if (!workflow) {
+    console.warn('[canOperateAtStage] 工作流对象为空')
+    return false
+  }
+
+  // 检查工作流状态
+  if (workflow.status === 'completed' || workflow.status === 'rejected' || workflow.current_stage === 'eliminated') {
+    return false
+  }
+
+  // 订单处理流程的权限检查
+  if (workflow.workflow_type === 'order') {
+    // 订单处理使用order_stage
+    if (String(workflow.order_stage) !== String(stageToCheck)) {
+      return false
+    }
+
+    const uid = Number(userInfo.value?.id)
+    if (!uid) {
+      console.warn('[canOperateAtStage] 用户ID未找到')
+      return false
+    }
+
+    const clerkId = Number(workflow.clerk)
+    // 订单处理所有阶段都是文员操作
+    return clerkId === uid
+  }
+
+  // 样品对接流程的权限检查
+  // 检查是否为当前阶段
+  if (String(workflow.current_stage) !== String(stageToCheck)) {
+    return false
+  }
+
+  // 转换用户ID为数字，确保类型一致
+  const uid = Number(userInfo.value?.id)
+  if (!uid) {
+    console.warn('[canOperateAtStage] 用户ID未找到')
+    return false
+  }
+
+  // 转换所有负责人ID为数字
+  const approverId = Number(workflow.approver)
+  const merchandiserId = Number(workflow.merchandiser)
+  const photographerId = Number(workflow.photographer)
+  const priceCalculatorId = Number(workflow.price_calculator)
+  const priceLeaderId = Number(workflow.price_leader)
+  const clerkId = Number(workflow.clerk)
+
+  // 转换阶段为字符串，确保比较一致
+  const stage = String(stageToCheck)
+
+  // 检查特定阶段的权限
+  if (stage === '1' && approverId === uid) return true
+  if (stage === '2' && merchandiserId === uid) return true
+  if (stage === '3' && merchandiserId === uid) return true
+  if (stage === '4' && photographerId === uid) return true
+  if (stage === '5' && merchandiserId === uid) return true
+  if (stage === '6' && priceCalculatorId === uid) return true
+  if (stage === '7' && priceLeaderId === uid) return true
+  if (stage === '8' && clerkId === uid) return true
+  if (stage === '9' && merchandiserId === uid) return true
+  if (stage === '10' && photographerId === uid) return true
+  if (stage === '11' && clerkId === uid) return true
+
+  return false
+}
+
+function getConfirmButtonTextForStage(stage, workflowType = null) {
+  // 订单处理流程的按钮文本
+  if (workflowType === 'order') {
+    if (stage === 1) return '订单制作'
+    if (stage === 2) return '确认审核'
+    if (stage === 3) return '确认审核'
+    if (stage === 4) return '确认审核'
+    return '确认'
+  }
+  // 样品对接流程的按钮文本
+  if (stage === '1') return '确认审核'
+  if (stage === '2') return '确认下单'
+  if (stage === '3') return '确认'
+  if (stage === '4') return '确认上传白底'
+  if (stage === '5') return '确认填写初价'
+  if (stage === '6') return '确认核算价格'
+  if (stage === '7') return '确认审批'
+  if (stage === '8') return '确认审批完成'
+  if (stage === '9') return '确认上传'
+  if (stage === '10') return '确认寄拍'
+  if (stage === '11') return '确认审核'
+  return '确认'
+}
+
+// 检查阶段是否需要填写表单
+function needsFormForStage(stage, workflowType = null, orderStage = null) {
+  // 订单处理流程
+  if (workflowType === 'order') {
+    // 订单处理阶段1和阶段3需要表单（电子订单制作、运营审核数据价格）
+    return String(orderStage) === '1' || String(orderStage) === '3'
+  }
+  // 样品对接流程：需要表单的阶段：1, 2, 4, 5, 6, 9, 10
+  return ['1', '2', '4', '5', '6', '9', '10'].includes(String(stage))
+}
+
+// 处理确认按钮点击
+async function handleStageConfirm(stage) {
+  const stageStr = String(stage)
+
+  if (needsFormForStage(stageStr, currentWorkflow.value?.workflow_type, currentWorkflow.value?.order_stage)) {
+    // 需要表单的阶段，打开对话框
+    await openActionDialog()
+  } else {
+    // 不需要表单的阶段，直接提交
+    const confirmMessages = {
+      '3': '确认完成样品会确认？流程将进入下一阶段',
+      '7': '确认审批通过核算价格？流程将进入下一阶段',
+      '8': '确认完成钉钉价格审批？流程将进入下一阶段',
+      '11': '确认完成文员审核？流程将完成'
+    }
+
+    const message = confirmMessages[stageStr] || '确认操作？流程将进入下一阶段'
+
+    await ElMessageBox.confirm(message, "确认操作", { type: "warning" })
+    await submitAction()
+  }
+}
+
+// 直接提交指定阶段的操作（不需要表单的阶段）
+async function submitActionForStage(stage) {
+  const payload = { action: '' }
+
+  if (stage === '3') {
+    payload.action = 'ds_sample_confirm'
+  } else if (stage === '7') {
+    payload.action = 'ds_approve_calculated_price'
+  } else if (stage === '8') {
+    payload.action = 'ds_dingtalk_price_approval'
+  } else if (stage === '11') {
+    payload.action = 'ds_clerk_review'
+  }
+
+  submitting.value = true
+  try {
+    const response = await updateWorkflowStatus(currentWorkflow.value.id, payload)
+    ElMessage.success(response.data?.message || '操作成功，流程已推进')
+
+    // 重新加载数据
+    await loadWorkflows(pagination.page)
+    try {
+      currentWorkflow.value = await getWorkflowDetail(currentWorkflow.value.id)
+    } catch (error) {
+      console.error('[submitActionForStage] Failed to get workflow detail:', error)
+    }
+  } catch (error) {
+    console.error('[submitActionForStage] 提交失败:', error)
+    const errorMsg = error.response?.data?.message || error.message || '未知错误'
+    ElMessage.error('操作失败: ' + errorMsg)
+  } finally {
+    submitting.value = false
+  }
+}
+
+function openActionDialog() {
+  resetActionForm()
+  // 订单处理流程使用order_stage，其他流程使用current_stage
+  const isOrderProcess = currentWorkflow.value?.workflow_type === 'order'
+  const stage = isOrderProcess ? currentWorkflow.value?.order_stage : currentWorkflow.value?.current_stage
+  const stageStr = String(stage)  // 确保是字符串
+  // 订单处理使用getOrderStageName获取阶段名称
+  const stageName = isOrderProcess ? getOrderStageName(stage) : getStageName(stage)
+  actionDialogTitle.value = stageName
+  console.log('[openActionDialog] 打开弹窗:', { isOrderProcess, stage, order_stage: currentWorkflow.value?.order_stage, workflow_type: currentWorkflow.value?.workflow_type })
+
+  if (stageStr === '5' && currentWorkflow.value) {
+    actionForm.initial_price = currentWorkflow.value.initial_price
+    actionForm.final_price = currentWorkflow.value.final_price
+    actionForm.price_details = currentWorkflow.value.price_details || ''
+  }
+
+  if (stageStr === '4' && currentWorkflow.value?.white_background_images) {
+    actionForm.white_background_images = [...currentWorkflow.value.white_background_images]
+    whiteBgFileList.value = currentWorkflow.value.white_background_images.map(url => ({
+      name: '白底图',
+      url: url
+    }))
+    console.log('[openActionDialog] 加载已有白底图:', actionForm.white_background_images)
+  }
+
+  if (stageStr === '10') {
+    photoShootDialogVisible.value = true
+    return
+  }
+
+  approveDialogVisible.value = true
+}
+
+function showPhotoShootForm() {
+  photoShootDialogVisible.value = false
+  actionDialogTitle.value = '确认寄拍 - 需要寄拍'
+  approveDialogVisible.value = true
+}
+
+async function submitPhotoShoot(noNeed) {
+  submitting.value = true
+  try {
+    const action = noNeed ? 'ds_confirm_photo_shoot' : 'ds_need_photo_shoot'
+    const payload = { action }
+    if (!noNeed) {
+      Object.assign(payload, {
+        need_white_bg_photo: actionForm.need_white_bg_photo,
+        white_bg_passed: actionForm.white_bg_passed,
+        white_bg_fail_reason: actionForm.white_bg_fail_reason,
+        has_try_on_report: actionForm.has_try_on_report,
+        accessory_material: actionForm.accessory_material,
+        is_ordered: actionForm.is_ordered,
+        ds_order_date: actionForm.ds_order_date,
+        photo_shoot_date: actionForm.photo_shoot_date,
+        photo_shoot_remarks: actionForm.photo_shoot_remarks
+      })
+    }
+    const response = await updateWorkflowStatus(currentWorkflow.value.id, payload)
+    ElMessage.success(response.data?.message || "操作成功")
+    photoShootDialogVisible.value = false
+    approveDialogVisible.value = false
+    await loadWorkflows(pagination.page)
+    try { currentWorkflow.value = await getWorkflowDetail(currentWorkflow.value.id) } catch (error) { console.error('[submitPhotoShoot] Failed to get workflow detail:', error) }
+  } catch (error) {
+    console.error('[submitPhotoShoot] 提交失败:', error)
+    const errorMsg = error.response?.data?.message || error.message || '未知错误'
+    ElMessage.error('操作失败: ' + errorMsg)
+  } finally {
+    submitting.value = false
+  }
+}
+
+// 专门处理阶段10寄拍表单提交的函数
+async function submitPhotoShootForm() {
+  console.log('[submitPhotoShootForm] 函数开始执行')
+  submitting.value = true
+  try {
+    // 阶段10需要寄拍表单数据
+    const action = 'ds_need_photo_shoot'
+    const payload = {
+      action,
+      need_white_bg_photo: actionForm.need_white_bg_photo,
+      white_bg_passed: actionForm.white_bg_passed,
+      white_bg_fail_reason: actionForm.white_bg_fail_reason,
+      has_try_on_report: actionForm.has_try_on_report,
+      accessory_material: actionForm.accessory_material,
+      is_ordered: actionForm.is_ordered,
+      ds_order_date: actionForm.ds_order_date,
+      photo_shoot_date: actionForm.photo_shoot_date,
+      photo_shoot_remarks: actionForm.photo_shoot_remarks
+    }
+
+    console.log('[submitPhotoShootForm] 提交寄拍表单:', payload)
+    console.log('[submitPhotoShootForm] actionForm内容:', actionForm)
+    console.log('[submitPhotoShootForm] 工作流ID:', currentWorkflow.value?.id)
+
+    const response = await updateWorkflowStatus(currentWorkflow.value.id, payload)
+    console.log('[submitPhotoShootForm] 提交成功:', response)
+    ElMessage.success(response.data?.message || "寄拍信息已提交")
+    approveDialogVisible.value = false
+    await loadWorkflows(pagination.page)
+    try { currentWorkflow.value = await getWorkflowDetail(currentWorkflow.value.id) } catch (error) { console.error('[submitPhotoShootForm] Failed to get workflow detail:', error) }
+  } catch (error) {
+    console.error('[submitPhotoShootForm] 提交失败:', error)
+    console.error('[submitPhotoShootForm] 错误详情:', error.response?.data)
+    const errorMsg = error.response?.data?.message || error.message || '未知错误'
+    ElMessage.error('操作失败: ' + errorMsg)
+  } finally {
+    submitting.value = false
+    console.log('[submitPhotoShootForm] 函数执行完成')
+  }
+}
+
+async function handleOrderReject() {
+  if (currentWorkflow.value?.workflow_type === 'order') {
+    const orderStage = currentWorkflow.value?.order_stage
+    if (orderStage >= 2) {
+      await ElMessageBox.confirm("确认拒绝？订单处理流程将退回上一步", "拒绝确认", { type: "warning" })
+      try {
+        // 订单处理拒绝：将order_stage退回上一个阶段
+        const response = await updateWorkflowStatus(currentWorkflow.value.id, { action: "ds_order_reject" })
+        ElMessage.success(response.data?.message || "已拒绝，订单处理流程退回上一步")
+        await loadWorkflows(pagination.page)
+        try { currentWorkflow.value = await getWorkflowDetail(currentWorkflow.value.id) } catch (error) { console.error('Failed to get workflow detail:', error) }
+      } catch (error) {
+        console.error('[handleOrderReject] 拒绝失败:', error)
+        const errorMsg = error.response?.data?.message || error.message || '未知错误'
+        ElMessage.error("操作失败: " + errorMsg)
+      }
+    }
+  }
+}
+
+async function handleReject() {
+  const stage = String(currentWorkflow.value?.current_stage)
+
+  if (stage === '3') {
+    await ElMessageBox.confirm("确认拒绝？该流程将被淘汰，不再继续", "淘汰确认", { type: "warning" })
+    try {
+      const response = await updateWorkflowStatus(currentWorkflow.value.id, { action: "ds_eliminate" })
+      ElMessage.success(response.data?.message || "已淘汰该流程")
+      await loadWorkflows(pagination.page)
+      try { currentWorkflow.value = await getWorkflowDetail(currentWorkflow.value.id) } catch (error) { console.error('Failed to get workflow detail:', error) }
+    } catch (error) {
+      console.error('[handleReject] 淘汰失败:', error)
+      const errorMsg = error.response?.data?.message || error.message || '未知错误'
+      ElMessage.error("操作失败: " + errorMsg)
+    }
+  } else {
+    await ElMessageBox.confirm("确认拒绝？流程将退回上一步", "拒绝确认", { type: "warning" })
+    try {
+      const response = await updateWorkflowStatus(currentWorkflow.value.id, { action: "ds_reject" })
+      ElMessage.success(response.data?.message || "已拒绝，流程退回上一步")
+      await loadWorkflows(pagination.page)
+      try { currentWorkflow.value = await getWorkflowDetail(currentWorkflow.value.id) } catch (error) { console.error('Failed to get workflow detail:', error) }
+    } catch (error) {
+      console.error('[handleReject] 拒绝失败:', error)
+      const errorMsg = error.response?.data?.message || error.message || '未知错误'
+      ElMessage.error("操作失败: " + errorMsg)
+    }
+  }
+}
+
+async function submitAction() {
+  const stage = String(currentWorkflow.value?.current_stage)  // 确保是字符串
+  let action = ''
+  const payload = {}  // 空对象，而不是 { action: '' }
+
+  // 优先处理订单处理流程
+  if (currentWorkflow.value?.workflow_type === 'order') {
+    // 订单处理流程
+    const orderStage = currentWorkflow.value?.order_stage
+    if (orderStage === 1) {
+      // 电子订单制作
+      if (!actionForm.order_items || actionForm.order_items.length === 0) { ElMessage.warning('请至少添加一条订单明细'); submitting.value = false; return }
+      if (!actionForm.warehouse) { ElMessage.warning('请填写仓储方'); submitting.value = false; return }
+      action = 'create_ds_electronic_order'
+      payload.action = action
+      payload.order_items = actionForm.order_items
+      payload.warehouse = actionForm.warehouse
+    } else if (orderStage === 2) {
+      // 业务审核材质
+      action = 'ds_approve_order_material'
+      payload.action = action
+      payload.comments = actionForm.comments
+    } else if (orderStage === 3) {
+      // 运营审核数据价格
+      action = 'ds_approve_data_price'
+      payload.action = action
+      payload.comments = actionForm.comments
+    } else if (orderStage === 4) {
+      // 运营部门领导审核
+      action = 'ds_approve_data_price_leader'
+      payload.action = action
+      payload.comments = actionForm.comments
+    } else {
+      ElMessage.error(`未知的订单处理阶段: ${orderStage}`)
+      submitting.value = false
+      return
+    }
+  } else if (stage === '1') {
+    if (!actionForm.supplier) {
+      ElMessage.warning('请选择供应商'); submitting.value = false; return
+    }
+    action = 'ds_approve'
+    payload.action = action
+    payload.supplier = actionForm.supplier
+    payload.comments = actionForm.comments
+  } else if (stage === '2') {
+    if (!actionForm.expected_completion_time || !actionForm.photographer) { ElMessage.warning('请填写必填项'); submitting.value = false; return }
+    action = 'ds_place_sample_order'
+    payload.action = action
+    payload.expected_completion_time = actionForm.expected_completion_time
+    payload.futures_spot_season = actionForm.futures_spot_season
+    payload.photographer = actionForm.photographer
+    payload.comments = actionForm.comments
+  } else if (stage === '3') {
+    action = 'ds_sample_confirm'
+    payload.action = action
+  } else if (stage === '4') {
+    console.log('[submitAction] 阶段4提交，白底图数量:', actionForm.white_background_images.length)
+    console.log('[submitAction] 白底图列表:', actionForm.white_background_images)
+    action = 'ds_photographer_white_bg'
+    payload.action = action
+    payload.white_background_images = actionForm.white_background_images
+    payload.comments = actionForm.comments
+  } else if (stage === '5') {
+    if (!actionForm.initial_price || !actionForm.final_price || !actionForm.price_calculator) { ElMessage.warning('请填写必填项'); submitting.value = false; return }
+    action = 'ds_fill_initial_price'
+    payload.action = action
+    payload.initial_price = actionForm.initial_price
+    payload.final_price = actionForm.final_price
+    payload.price_details = actionForm.price_details
+    payload.price_submitted = actionForm.price_submitted
+    payload.price_submit_date = actionForm.price_submit_date
+    payload.price_approval_completed = actionForm.price_approval_completed
+    payload.unordered_reason = actionForm.unordered_reason
+    payload.ds_six_images_uploaded = actionForm.ds_six_images_uploaded
+    payload.ds_six_images_qualified = actionForm.ds_six_images_qualified
+    payload.price_calculator = actionForm.price_calculator
+  } else if (stage === '6') {
+    if (!actionForm.clerk || !actionForm.price_leader) { ElMessage.warning('请选择文员和直属领导'); submitting.value = false; return }
+    action = 'ds_calculate_price'
+    payload.action = action
+    payload.clerk = actionForm.clerk
+    payload.price_leader = actionForm.price_leader
+  } else if (stage === '7') {
+    action = 'ds_approve_calculated_price'
+    payload.action = action
+  } else if (stage === '8') {
+    action = 'ds_dingtalk_price_approval'
+    payload.action = action
+    } else if (stage === '9') {
+    action = 'ds_upload_try_on_report'
+    payload.action = action
+    payload.try_on_report = actionForm.try_on_report
+  } else if (stage === '10') {
+    // 阶段10通过submitPhotoShootForm()函数处理，不应该到达这里
+    ElMessage.error('阶段10应该通过寄拍表单提交')
+    submitting.value = false
+    return
+  } else if (stage === '11') {
+    action = 'ds_clerk_review'
+    payload.action = action
+    payload.comments = actionForm.comments
+  } else if (currentWorkflow.value?.workflow_type === 'order') {
+    // 订单处理流程
+    const orderStage = currentWorkflow.value?.order_stage
+    if (orderStage === 1) {
+      // 电子订单制作
+      if (!actionForm.order_items_array || actionForm.order_items_array.length === 0) { ElMessage.warning('请至少添加一条订单明细'); submitting.value = false; return }
+      if (!actionForm.warehouse) { ElMessage.warning('请选择仓库'); submitting.value = false; return }
+      action = 'create_ds_electronic_order'
+      payload.action = action
+      payload.order_items = actionForm.order_items_array
+      payload.warehouse = actionForm.warehouse
+    } else if (orderStage === 2) {
+      // 业务审核材质
+      action = 'ds_approve_order_material'
+      payload.action = action
+      payload.comments = actionForm.comments
+    } else if (orderStage === 3) {
+      // 运营审核数据价格
+      action = 'ds_approve_data_price'
+      payload.action = action
+      payload.comments = actionForm.comments
+    } else if (orderStage === 4) {
+      // 运营部门领导审核
+      action = 'ds_approve_data_price_leader'
+      payload.action = action
+      payload.comments = actionForm.comments
+    } else {
+      ElMessage.error(`未知的订单处理阶段: ${orderStage}`)
+      submitting.value = false
+      return
+    }
+  }
+
+  // 最终检查action是否设置成功
+  if (!action) {
+    ElMessage.error('操作类型未设置，请重试')
+    submitting.value = false
+    return
+  }
+
+  submitting.value = true
+  try {
+    const response = await updateWorkflowStatus(currentWorkflow.value.id, payload)
+    ElMessage.success(response.data?.message || "操作成功")
+    approveDialogVisible.value = false
+    await loadWorkflows(pagination.page)
+    try {
+      currentWorkflow.value = await getWorkflowDetail(currentWorkflow.value.id)
+    } catch (error) {
+      console.error('[submitAction] Failed to get workflow detail:', error)
+    }
+  } catch (error) {
+    console.error('[submitAction] 提交失败:', error)
+    const errorMsg = error.response?.data?.message || error.message || '未知错误'
+    ElMessage.error('操作失败: ' + errorMsg)
+  } finally {
+    submitting.value = false
+  }
+}
+
+// 统一的确认按钮点击处理函数
+async function handleConfirmClick() {
+  // 订单处理流程使用order_stage，其他流程使用current_stage
+  const isOrderProcess = currentWorkflow.value?.workflow_type === 'order'
+  const stage = isOrderProcess ? String(currentWorkflow.value?.order_stage) : String(currentWorkflow.value?.current_stage)
+  console.log('[handleConfirmClick] 确认按钮被点击:', { stage, isOrderProcess, currentWorkflow: currentWorkflow.value })
+
+  // 阶段10（确认寄拍）需要调用submitPhotoShootForm
+  if (stage === '10') {
+    await submitPhotoShootForm()
+  } else {
+    await submitAction()
+  }
+}
+
+function selectBrand(brand) {
+  currentBrand.value = brand
+  loadWorkflows(1)
+}
+
+function selectWorkflowType(type) {
+  filters.workflow_type = type
+  loadWorkflows(1)
+}
+
+function openCreateWorkflowDialog() {
+  createDialogVisible.value = true
+}
+
+async function submitCreateForm() {
+  try {
+    await createFormRef.value.validate()
+    submitting.value = true
+
+    const formData = {
+      ...createForm,
+      workflow_type: 'sample',
+      status: 'pending',
+      current_stage: '1',
+      progress: 0,
+      brand: 'double_star'
+    }
+
+    const response = await createWorkflow(formData)
+    ElMessage.success(response.data?.message || "工作流创建成功")
+    createDialogVisible.value = false
+
+    // 重置表单
+    createFormRef.value.resetFields()
+    imageFileList.value = []
+
+    await loadWorkflows(pagination.page)
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('[submitCreateForm] 创建失败:', error)
+      const errorMsg = error.response?.data?.message || error.message || '创建失败'
+      ElMessage.error(errorMsg)
+    }
+  } finally {
+    submitting.value = false
+  }
+}
+
+function resetFilters() {
+  filters.q = ""
+  filters.workflow_type = "sample"
+  filters.merchandiser = null
+  filters.platform = null
+  filters.development_rhythm = null
+  loadWorkflows(1)
+}
+
+onMounted(async () => {
+  await Promise.all([loadUsers(), loadSuppliers(), loadWorkflows()])
+})
+</script>

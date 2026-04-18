@@ -7,6 +7,7 @@ import NotFoundView from "@/views/errors/NotFoundView.vue"
 import ProductListView from "@/views/product/ProductListView.vue"
 import WhiteLabelWorkflowView from "@/views/product/WhiteLabelWorkflowView.vue"
 import DoubleStarWorkflowView from "@/views/product/DoubleStarWorkflowView.vue"
+import CrossBorderWorkflowView from "@/views/product/CrossBorderWorkflowView.vue"
 import EmployeeRelationView from "@/views/hr/EmployeeRelationView.vue"
 import RecruitmentManagementView from "@/views/hr/RecruitmentManagementView.vue"
 import { routePages } from "@/config/menu"
@@ -30,7 +31,7 @@ export const protectedRoutes = [
         path: page.path,
         name: page.pageCode,
         component: page.pageCode === "product-product-list" ? ProductListView : 
-                  page.pageCode === "product-white-label" ? DoubleStarWorkflowView : 
+                  page.pageCode === "product-white-label" ? CrossBorderWorkflowView : 
                   page.pageCode === "product-double-star" ? WhiteLabelWorkflowView : 
                   page.pageCode === "hr-employee-roster" ? EmployeeRelationView : 
                   page.pageCode === "hr-resigned-employees" ? GenericPageView : 

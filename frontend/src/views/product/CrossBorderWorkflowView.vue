@@ -9,14 +9,15 @@
           <div class="flex gap-1">
             <el-button :type="currentBrand === '全部' ? 'primary' : 'default'" round @click="selectBrand('全部')">全部</el-button>
             <el-button :type="currentBrand === '白牌' ? 'primary' : 'default'" round @click="selectBrand('白牌')">白牌</el-button>
-            <el-button :type="currentBrand === '双星' ? 'primary' : 'default'" round @click="selectBrand('双星')">双星-V2</el-button>
+            <el-button :type="currentBrand === '双星' ? 'primary' : 'default'" round @click="selectBrand('双星')">双星</el-button>
             <el-button :type="currentBrand === '雅鹿' ? 'primary' : 'default'" round @click="selectBrand('雅鹿')">雅鹿</el-button>
+            <el-button :type="currentBrand === 'FKO' ? 'primary' : 'default'" round @click="selectBrand('FKO')">FKO</el-button>
           </div>
         </div>
       </div>
 
-      <!-- 进度选择 - 只对白牌显示 -->
-      <div v-if="currentBrand === '白牌'" class="mb-5">
+      <!-- 进度选择 - 对所有品牌显示 -->
+      <div class="mb-5">
         <div class="flex items-center gap-3">
           <span class="text-base font-semibold text-gray-700">进度：</span>
           <div class="flex gap-2">
@@ -27,8 +28,8 @@
         </div>
       </div>
 
-      <!-- 筛选条件 - 只对白牌显示 -->
-      <div v-if="currentBrand === '白牌'" class="mb-5 p-4 bg-gray-50 rounded-lg">
+      <!-- 筛选条件 - 对所有品牌显示 -->
+      <div class="mb-5 p-4 bg-gray-50 rounded-lg">
         <el-form :inline="true" :model="filters" class="w-full">
           <el-form-item class="!mb-2 md:!mb-0">
             <el-input v-model="filters.q" clearable placeholder="搜索产品名称" @keyup.enter="loadWorkflows(1)" class="w-[200px]" />
@@ -69,24 +70,13 @@
         </el-form>
       </div>
 
-      <!-- 双星品牌：直接使用跨境双星工作流组件（只显示品牌按钮和组件本身） -->
-      <template v-if="currentBrand === '双星'">
-        <DoubleStarWorkflow :embedded="true" />
-      </template>
-
-      <!-- 雅鹿待开发提示 -->
-      <div v-else-if="currentBrand === '雅鹿'" class="flex flex-col items-center justify-center py-20 text-gray-400">
-        <el-icon :size="64" class="mb-4"><Collection /></el-icon>
-        <span class="text-lg">待开发</span>
-      </div>
-
       <!-- 全部待开发提示 -->
-      <div v-else-if="currentBrand === '全部'" class="flex flex-col items-center justify-center py-20 text-gray-400">
+      <div v-if="currentBrand === '全部'" class="flex flex-col items-center justify-center py-20 text-gray-400">
         <el-icon :size="64" class="mb-4"><Collection /></el-icon>
         <span class="text-lg">待开发</span>
       </div>
 
-      <!-- 白牌工作流内容 -->
+      <!-- 所有品牌都使用白牌工作流内容 -->
       <div v-else>
         <el-table v-loading="loading" :data="workflows" stripe row-key="id">
         <el-table-column type="expand">
@@ -1466,7 +1456,7 @@ const imageFileList = ref([])
 const whiteImageFileList = ref([])
 const uploadUrl = "/api/business/workflows/upload-image/"
 const uploadHeaders = computed(() => ({ 'Authorization': `Bearer ${authStore.state.accessToken}` }))
-const currentBrand = ref("双星")
+const currentBrand = ref("白牌")
 const filters = reactive({ q: "", status: "", workflow_type: "sample", merchandiser: null, platform: null, development_rhythm: null })
 const pagination = reactive({ page: 1, page_size: 8, total: 0 })
 const eliminateDialogVisible = ref(false)
@@ -1637,16 +1627,22 @@ async function selectBrand(brand) {
   currentBrand.value = brand
   console.log('【调试】选择品牌:', brand, 'currentBrand:', currentBrand.value, '时间:', Date.now())
   
-  // 待开发的品牌提示
-  if (brand === '全部' || brand === '雅鹿') {
+  // 全部品牌显示待开发
+  if (brand === '全部') {
     ElMessage.info('待开发')
     workflows.value = []
     pagination.total = 0
     return
   }
   
-  // 白牌和双星正常加载数据
-  const brandParam = brand === '双星' ? 'double_star' : 'white_label'
+  // 跨境品牌参数映射
+  const brandMap = {
+    '白牌': 'cross_border_white_label',
+    '双星': 'cross_border_double_star',
+    '雅鹿': 'cross_border_yalu',
+    'FKO': 'cross_border_fko'
+  }
+  const brandParam = brandMap[brand] || 'cross_border_white_label'
   console.log('selectBrand - brandParam:', brandParam)
   
   loading.value = true
@@ -1680,8 +1676,14 @@ async function loadWorkflows(page = pagination.page) {
   loading.value = true
   try {
     pagination.page = page
-    // 根据品牌选择不同的 brand 参数
-    const brandParam = currentBrand.value === '双星' ? 'double_star' : 'white_label'
+    // 跨境品牌参数映射
+    const brandMap = {
+      '白牌': 'cross_border_white_label',
+      '双星': 'cross_border_double_star',
+      '雅鹿': 'cross_border_yalu',
+      'FKO': 'cross_border_fko'
+    }
+    const brandParam = brandMap[currentBrand.value] || 'cross_border_white_label'
     console.log('loadWorkflows - currentBrand:', currentBrand.value, 'brandParam:', brandParam)
     const response = await getWorkflows({
       page: pagination.page,
@@ -1748,7 +1750,14 @@ async function submitCreateForm() {
   }
   submitting.value = true
   try {
-    const brand = currentBrand.value === '双星' ? 'double_star' : 'white_label'
+    // 跨境品牌参数映射
+    const brandMap = {
+      '白牌': 'cross_border_white_label',
+      '双星': 'cross_border_double_star',
+      '雅鹿': 'cross_border_yalu',
+      'FKO': 'cross_border_fko'
+    }
+    const brand = brandMap[currentBrand.value] || 'cross_border_white_label'
     await createWorkflow({ ...createForm, brand })
     ElMessage.success("工作流创建成功")
     createDialogVisible.value = false
