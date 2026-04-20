@@ -160,6 +160,14 @@ class RecruitmentProgress(models.Model):
     resume_file = models.FileField(upload_to='resumes/', blank=True, null=True, verbose_name="候选人简历")
     resume_file_name = models.CharField(max_length=255, blank=True, null=True, verbose_name="简历文件名")
     
+    # 应聘登记表
+    registration_form = models.FileField(upload_to='registration_forms/', blank=True, null=True, verbose_name="应聘登记表")
+    registration_form_name = models.CharField(max_length=255, blank=True, null=True, verbose_name="应聘登记表文件名")
+    
+    # 性格测试表
+    personality_test = models.FileField(upload_to='personality_tests/', blank=True, null=True, verbose_name="性格测试表")
+    personality_test_name = models.CharField(max_length=255, blank=True, null=True, verbose_name="性格测试表文件名")
+    
     # 个人信息
     gender = models.CharField(max_length=10, verbose_name="性别")
     education = models.CharField(max_length=20, verbose_name="学历")

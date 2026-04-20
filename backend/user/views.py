@@ -736,6 +736,9 @@ class RecruitmentProgressView(APIView):
                     # 发offer阶段字段
                     'offer_status': item.offer_status,
                     'offer_reply': item.offer_reply,
+                    # 上传文件字段
+                    'registration_form_url': item.registration_form.url if item.registration_form else None,
+                    'personality_test_url': item.personality_test.url if item.personality_test else None,
                 })
             except Exception as e:
                 # 如果单条记录处理失败，跳过该记录
@@ -793,6 +796,9 @@ class RecruitmentProgressView(APIView):
             expected_onboard_date=data.get('expected_onboard_date'),
             offer_status=data.get('offer_status', ''),
             offer_reply=data.get('offer_reply', ''),
+            # 文件字段
+            registration_form_file=data.get('registration_form_url', ''),
+            personality_test_file=data.get('personality_test_url', ''),
         )
         
         return Response({'id': progress.id, 'message': '创建成功'}, status=201)

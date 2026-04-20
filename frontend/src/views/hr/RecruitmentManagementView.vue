@@ -138,10 +138,11 @@
           <el-table-column label="学历" prop="education" width="80" />
           <el-table-column label="邀约HR" prop="invite_hr" width="100" />
           <el-table-column label="预计到岗时间" prop="expected_arrival" width="110" />
-          <el-table-column label="操作" width="120" fixed="right">
+          <el-table-column label="操作" width="150" fixed="right">
             <template #default="{ row }">
               <div class="flex gap-2">
                 <el-button type="primary" link size="small" @click="handleProgressDetail(row)">详情</el-button>
+                <el-button type="warning" link size="small" @click="handleProgressEdit(row)">修改</el-button>
               </div>
             </template>
           </el-table-column>
@@ -160,9 +161,9 @@
           />
         </div>
 
-        <!-- 详情对话框 -->
-        <el-dialog v-model="detailDialogVisible" title="招聘进度详情" width="900px" top="5vh">
-          <el-form v-if="detailForm" :model="detailForm" label-width="120px" class="detail-form">
+        <!-- 详情/修改对话框 -->
+        <el-dialog v-model="detailDialogVisible" :title="detailDialogType === 'edit' ? '修改招聘进度' : '招聘进度详情'" width="900px" top="5vh">
+          <el-form v-if="detailForm" :model="detailForm" label-width="120px" class="detail-form" :disabled="detailDialogType === 'view'">
             <!-- 基本信息 -->
             <h4 class="section-title">基本信息</h4>
             <el-row :gutter="20">
@@ -238,39 +239,6 @@
               <el-col :span="12">
                 <el-form-item label="新增时间">
                   <el-input v-model="detailForm.created_at" disabled />
-                </el-form-item>
-              </el-col>
-            </el-row>
-
-            <!-- 待面试阶段 -->
-            <h4 class="section-title">待面试阶段</h4>
-            <el-row :gutter="20">
-              <el-col :span="12">
-                <el-form-item label="预计面试时间">
-                  <el-date-picker v-model="detailForm.expected_interview_time" type="datetime" value-format="YYYY-MM-DD HH:mm" style="width: 100%" />
-                </el-form-item>
-              </el-col>
-              <el-col :span="12">
-                <el-form-item label="实际面试时间">
-                  <el-date-picker v-model="detailForm.actual_interview_time" type="datetime" value-format="YYYY-MM-DD HH:mm" style="width: 100%" />
-                </el-form-item>
-              </el-col>
-            </el-row>
-            <el-row :gutter="20">
-              <el-col :span="12">
-                <el-form-item label="是否到面">
-                  <el-select v-model="detailForm.is_attended" style="width: 100%">
-                    <el-option label="是" value="是" />
-                    <el-option label="否" value="否" />
-                  </el-select>
-                </el-form-item>
-              </el-col>
-              <el-col :span="12">
-                <el-form-item label="是否视频面试">
-                  <el-select v-model="detailForm.is_video_interview" style="width: 100%">
-                    <el-option label="是" value="是" />
-                    <el-option label="否" value="否" />
-                  </el-select>
                 </el-form-item>
               </el-col>
             </el-row>
@@ -445,8 +413,8 @@
             </el-row>
           </el-form>
           <template #footer>
-            <el-button @click="detailDialogVisible = false">取消</el-button>
-            <el-button type="primary" @click="handleDetailSubmit" :loading="detailSubmitting">确认</el-button>
+            <el-button @click="detailDialogVisible = false">关闭</el-button>
+            <el-button v-if="detailDialogType === 'edit'" type="primary" @click="handleDetailSubmit" :loading="detailSubmitting">确认</el-button>
           </template>
         </el-dialog>
       </div>
@@ -790,17 +758,230 @@
             </el-form-item>
           </el-col>
         </el-row>
+        <!-- 储备阶段 -->
+        <el-divider content-position="left">储备阶段</el-divider>
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="储备状态">
+              <el-select v-model="progressForm.reserve_status" placeholder="请选择" class="w-full">
+                <el-option label="储备中" value="储备中" />
+                <el-option label="已激活" value="已激活" />
+                <el-option label="已放弃" value="已放弃" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+        </el-row>
+
+        <!-- 初试阶段 -->
+        <el-divider content-position="left">初试阶段</el-divider>
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="初试时间">
+              <el-date-picker v-model="progressForm.first_interview_actual_time" type="datetime" placeholder="选择时间" class="w-full" value-format="YYYY-MM-DD HH:mm" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="初试面试官">
+              <el-input v-model="progressForm.first_interview_actual_interviewer" placeholder="请输入面试官" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="初试结果">
+              <el-select v-model="progressForm.first_interview_result" placeholder="请选择" class="w-full">
+                <el-option label="通过" value="通过" />
+                <el-option label="未通过" value="未通过" />
+                <el-option label="待定" value="待定" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="未通过原因">
+              <el-input v-model="progressForm.first_interview_fail_reason" type="textarea" :rows="2" placeholder="请输入未通过原因" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+
+        <!-- 复试阶段 -->
+        <el-divider content-position="left">复试阶段</el-divider>
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="复试时间">
+              <el-date-picker v-model="progressForm.second_interview_actual_time" type="datetime" placeholder="选择时间" class="w-full" value-format="YYYY-MM-DD HH:mm" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="复试面试官">
+              <el-input v-model="progressForm.second_interview_actual_interviewer" placeholder="请输入面试官" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="复试结果">
+              <el-select v-model="progressForm.second_interview_result" placeholder="请选择" class="w-full">
+                <el-option label="通过" value="通过" />
+                <el-option label="未通过" value="未通过" />
+                <el-option label="待定" value="待定" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="未通过原因">
+              <el-input v-model="progressForm.second_interview_fail_reason" type="textarea" :rows="2" placeholder="请输入未通过原因" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+
+        <!-- 确认Offer阶段 -->
+        <el-divider content-position="left">确认Offer阶段</el-divider>
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="期待薪资">
+              <el-input-number v-model="progressForm.expected_salary" :min="0" :precision="2" class="w-full" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="谈薪确认标准">
+              <el-input v-model="progressForm.salary_confirm_standard" placeholder="请输入谈薪确认标准" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="转正期限">
+              <el-input v-model="progressForm.probation_period" placeholder="如：3个月" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="社保备注">
+              <el-input v-model="progressForm.social_security_remarks" placeholder="请输入社保备注" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="入职部门">
+              <el-input v-model="progressForm.onboard_department" placeholder="请输入入职部门" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="入职岗位">
+              <el-input v-model="progressForm.onboard_position" placeholder="请输入入职岗位" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="职级">
+              <el-select v-model="progressForm.job_level" placeholder="请选择" class="w-full">
+                <el-option label="P1" value="P1" />
+                <el-option label="P2" value="P2" />
+                <el-option label="P3" value="P3" />
+                <el-option label="P4" value="P4" />
+                <el-option label="P5" value="P5" />
+                <el-option label="M1" value="M1" />
+                <el-option label="M2" value="M2" />
+                <el-option label="M3" value="M3" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="预计入职日期">
+              <el-date-picker v-model="progressForm.expected_onboard_date" type="date" placeholder="选择日期" class="w-full" value-format="YYYY-MM-DD" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+
+        <!-- 发Offer阶段 -->
+        <el-divider content-position="left">发Offer阶段</el-divider>
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="Offer状态">
+              <el-select v-model="progressForm.offer_status" placeholder="请选择" class="w-full">
+                <el-option label="待发" value="待发" />
+                <el-option label="已发" value="已发" />
+                <el-option label="已接受" value="已接受" />
+                <el-option label="已拒绝" value="已拒绝" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="Offer回复">
+              <el-input v-model="progressForm.offer_reply" type="textarea" :rows="2" placeholder="请输入Offer回复" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+
+        <!-- 其他信息 -->
+        <el-divider content-position="left">其他信息</el-divider>
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="预计到岗">
+              <el-date-picker v-model="progressForm.expected_arrival" type="date" placeholder="选择日期" class="w-full" value-format="YYYY-MM-DD" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="面试结果">
+              <el-select v-model="progressForm.interview_result" placeholder="请选择" class="w-full">
+                <el-option label="待面试" value="待面试" />
+                <el-option label="一面通过" value="一面通过" />
+                <el-option label="一面未通过" value="一面未通过" />
+                <el-option label="二面通过" value="二面通过" />
+                <el-option label="二面未通过" value="二面未通过" />
+                <el-option label="待发OFFER" value="待发OFFER" />
+                <el-option label="已发OFFER待入职" value="已发OFFER待入职" />
+                <el-option label="已入职" value="已入职" />
+                <el-option label="储备" value="储备" />
+                <el-option label="待定" value="待定" />
+                <el-option label="拒绝OFFER" value="拒绝OFFER" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+        </el-row>
+
+        <!-- 文件上传 -->
+        <el-divider content-position="left">文件上传</el-divider>
         <el-form-item label="简历上传">
           <el-upload
             action="#"
             :auto-upload="false"
             :on-change="handleResumeChange"
             :file-list="resumeFileList"
-            accept=".pdf,.doc,.docx"
+            accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
           >
             <el-button type="primary">选择文件</el-button>
             <template #tip>
-              <div class="el-upload__tip">支持 PDF、Word 格式</div>
+              <div class="el-upload__tip">支持 PDF、Word、PNG、JPG 格式</div>
+            </template>
+          </el-upload>
+        </el-form-item>
+        <el-form-item label="应聘登记表">
+          <el-upload
+            action="#"
+            :auto-upload="false"
+            :on-change="handleApplicationFormChange"
+            :file-list="applicationFormFileList"
+            accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
+          >
+            <el-button type="primary">选择文件</el-button>
+            <template #tip>
+              <div class="el-upload__tip">支持 PDF、Word、PNG、JPG 格式</div>
+            </template>
+          </el-upload>
+        </el-form-item>
+        <el-form-item label="性格测试表">
+          <el-upload
+            action="#"
+            :auto-upload="false"
+            :on-change="handlePersonalityTestChange"
+            :file-list="personalityTestFileList"
+            accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
+          >
+            <el-button type="primary">选择文件</el-button>
+            <template #tip>
+              <div class="el-upload__tip">支持 PDF、Word、PNG、JPG 格式</div>
             </template>
           </el-upload>
         </el-form-item>
@@ -1073,6 +1254,26 @@ const handleProgressSelectionChange = (selection) => {
 // ========== 招聘进度对话框相关 ==========
 const progressDialogVisible = ref(false)
 const progressDialogType = ref('add')
+const resumeFileList = ref([])
+const registrationFileList = ref([])
+const personalityFileList = ref([])
+
+// 文件上传处理函数
+const handleResumeChange = (file, fileList) => {
+  resumeFileList.value = fileList
+  progressForm.resume_url = file.name
+}
+
+const handleRegistrationChange = (file, fileList) => {
+  registrationFileList.value = fileList
+  progressForm.registration_form_url = file.name
+}
+
+const handlePersonalityChange = (file, fileList) => {
+  personalityFileList.value = fileList
+  progressForm.personality_test_url = file.name
+}
+
 const progressForm = reactive({
   id: null,
   candidate_name: '',
@@ -1081,6 +1282,8 @@ const progressForm = reactive({
   position: '',
   source_channel: '',
   resume_url: '',
+  registration_url: '',
+  personality_url: '',
   gender: '',
   education: '',
   invite_hr: '',
@@ -1124,6 +1327,7 @@ const progressForm = reactive({
 
 // 详情对话框数据
 const detailDialogVisible = ref(false)
+const detailDialogType = ref('detail') // 'detail' 或 'edit'
 const detailSubmitting = ref(false)
 const detailForm = reactive({
   id: null,
@@ -1218,8 +1422,15 @@ const handleProgressAdd = () => {
     job_level: '',
     expected_onboard_date: '',
     offer_status: '',
-    offer_reply: ''
+    offer_reply: '',
+    // 文件字段
+    registration_form_url: '',
+    personality_test_url: ''
   })
+  // 重置文件列表
+  resumeFileList.value = []
+  registrationFileList.value = []
+  personalityFileList.value = []
   progressDialogVisible.value = true
 }
 
@@ -1286,6 +1497,64 @@ const handleProgressDetail = (row) => {
     ElMessage.error('行数据为空')
     return
   }
+  detailDialogType.value = 'view'
+  Object.assign(detailForm, {
+    id: row.id,
+    candidate_name: row.candidate_name || '',
+    recommend_date: row.recommend_date || '',
+    department: row.department || '',
+    position: row.position || '',
+    source_channel: row.source_channel || '',
+    gender: row.gender || '',
+    education: row.education || '',
+    invite_hr: row.invite_hr || '',
+    // 储备阶段
+    reserve_status: row.reserve_status || '',
+    created_at: row.created_at || '',
+    // 待面试阶段
+    expected_interview_time: row.expected_interview_time || '',
+    actual_interview_time: row.actual_interview_time || '',
+    is_attended: row.is_attended || '',
+    is_video_interview: row.is_video_interview || '',
+    // 初试阶段
+    first_interview_actual_time: row.first_interview_actual_time || '',
+    first_interview_actual_interviewer: row.first_interview_actual_interviewer || '',
+    first_interview_result: row.first_interview_result || '',
+    first_interview_fail_reason: row.first_interview_fail_reason || '',
+    // 复试阶段
+    second_interview_actual_time: row.second_interview_actual_time || '',
+    second_interview_actual_interviewer: row.second_interview_actual_interviewer || '',
+    second_interview_result: row.second_interview_result || '',
+    second_interview_fail_reason: row.second_interview_fail_reason || '',
+    // 确认offer阶段
+    expected_salary: row.expected_salary || null,
+    salary_confirm_standard: row.salary_confirm_standard || '',
+    probation_period: row.probation_period || '',
+    social_security_remarks: row.social_security_remarks || '',
+    onboard_department: row.onboard_department || '',
+    onboard_position: row.onboard_position || '',
+    job_level: row.job_level || '',
+    expected_onboard_date: row.expected_onboard_date || '',
+    // 发offer阶段
+    offer_status: row.offer_status || '',
+    offer_reply: row.offer_reply || '',
+    // 其他字段
+    first_interview_time: row.first_interview_time || '',
+    first_interviewer: row.first_interviewer || '',
+    second_interview_time: row.second_interview_time || '',
+    second_interviewer: row.second_interviewer || '',
+    interview_result: row.interview_result || '待面试',
+    expected_arrival: row.expected_arrival || ''
+  })
+  detailDialogVisible.value = true
+}
+
+const handleProgressEdit = (row) => {
+  if (!row) {
+    ElMessage.error('行数据为空')
+    return
+  }
+  detailDialogType.value = 'edit'
   Object.assign(detailForm, {
     id: row.id,
     candidate_name: row.candidate_name || '',
