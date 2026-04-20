@@ -808,9 +808,6 @@ class RecruitmentProgressView(APIView):
             offer_status=data.get('offer_status', ''),
             offer_reply=data.get('offer_reply', ''),
             offer_reject_reason=data.get('offer_reject_reason', ''),
-            # 文件字段
-            registration_form_file=data.get('registration_form_url', ''),
-            personality_test_file=data.get('personality_test_url', ''),
         )
         
         return Response({'id': progress.id, 'message': '创建成功'}, status=201)

@@ -149,7 +149,7 @@ class RecruitmentProgress(models.Model):
     """
     # 候选人信息
     candidate_name = models.CharField(max_length=50, verbose_name="候选人")
-    recommendation_date = models.DateField(verbose_name="推荐日期")
+    recommendation_date = models.DateField(blank=True, null=True, verbose_name="推荐日期")
     
     # 应聘信息
     department = models.CharField(max_length=50, verbose_name="应聘部门")
