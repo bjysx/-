@@ -611,7 +611,7 @@ class RecruitmentProgressView(APIView):
         # 筛选条件
         department = request.query_params.get('department', '')
         position = request.query_params.get('position', '')
-        interview_result = request.query_params.get('interview_result', '')
+        current_progress = request.query_params.get('current_progress', '')
         hr = request.query_params.get('hr', '')
         keyword = request.query_params.get('keyword', '')
         
@@ -619,8 +619,8 @@ class RecruitmentProgressView(APIView):
             queryset = queryset.filter(department=department)
         if position:
             queryset = queryset.filter(position=position)
-        if interview_result:
-            queryset = queryset.filter(interview_result=interview_result)
+        if current_progress:
+            queryset = queryset.filter(current_progress=current_progress)
         if hr:
             queryset = queryset.filter(inviting_hr=hr)
         if keyword:
@@ -703,11 +703,9 @@ class RecruitmentProgressView(APIView):
                     'first_interviewer': item.first_interviewer,
                     'second_interview_time': second_interview_time,
                     'second_interviewer': item.second_interviewer,
-                    'interview_result': item.interview_result,
+                    'current_progress': item.current_progress,
                     'expected_arrival': expected_arrival,
                     'created_at': created_at,
-                    # 储备阶段字段
-                    'reserve_status': item.reserve_status,
                     'add_time': created_at,
                     # 待面试阶段字段
                     'expected_interview_time': expected_interview_time,
@@ -725,17 +723,23 @@ class RecruitmentProgressView(APIView):
                     'second_interview_result': item.second_interview_result,
                     'second_interview_fail_reason': item.second_interview_fail_reason,
                     # 确认offer阶段字段
-                    'expected_salary': item.expected_salary,
-                    'salary_confirm_standard': item.salary_confirm_standard,
                     'probation_period': item.probation_period,
                     'social_security_remarks': item.social_security_remarks,
                     'onboard_department': item.onboard_department,
                     'onboard_position': item.onboard_position,
                     'job_level': item.job_level,
                     'expected_onboard_date': expected_onboard_date,
+                    # 薪资信息
+                    'salary': item.salary,
+                    'basic_salary': item.basic_salary,
+                    'position_salary': item.position_salary,
+                    'performance_salary': item.performance_salary,
+                    'commission': item.commission,
+                    'allowance': item.allowance,
                     # 发offer阶段字段
                     'offer_status': item.offer_status,
                     'offer_reply': item.offer_reply,
+                    'offer_reject_reason': item.offer_reject_reason,
                     # 上传文件字段
                     'registration_form_url': item.registration_form.url if item.registration_form else None,
                     'personality_test_url': item.personality_test.url if item.personality_test else None,
@@ -756,9 +760,13 @@ class RecruitmentProgressView(APIView):
         """创建招聘进度记录"""
         data = request.data
         
+        # 辅助函数：将空字符串转为 None
+        def empty_to_none(value):
+            return None if value == '' else value
+        
         progress = RecruitmentProgress.objects.create(
             candidate_name=data.get('candidate_name', ''),
-            recommendation_date=data.get('recommend_date'),
+            recommendation_date=empty_to_none(data.get('recommend_date')),
             department=data.get('department', ''),
             position=data.get('position', ''),
             source_channel=data.get('source_channel', ''),
@@ -766,36 +774,40 @@ class RecruitmentProgressView(APIView):
             gender=data.get('gender', ''),
             education=data.get('education', ''),
             inviting_hr=data.get('invite_hr', ''),
-            first_interview_time=data.get('first_interview_time'),
+            first_interview_time=empty_to_none(data.get('first_interview_time')),
             first_interviewer=data.get('first_interviewer', ''),
-            second_interview_time=data.get('second_interview_time'),
+            second_interview_time=empty_to_none(data.get('second_interview_time')),
             second_interviewer=data.get('second_interviewer', ''),
-            interview_result=data.get('interview_result', '待面试'),
-            expected_arrival_time=data.get('expected_arrival'),
+            expected_arrival_time=empty_to_none(data.get('expected_arrival')),
+            current_progress=data.get('current_progress', ''),
             # 新增字段
-            reserve_status=data.get('reserve_status', ''),
-            expected_interview_time=data.get('expected_interview_time'),
-            actual_interview_time=data.get('actual_interview_time'),
+            expected_interview_time=empty_to_none(data.get('expected_interview_time')),
+            actual_interview_time=empty_to_none(data.get('actual_interview_time')),
             is_attended=data.get('is_attended', False),
             is_video_interview=data.get('is_video_interview', False),
-            first_interview_actual_time=data.get('first_interview_actual_time'),
+            first_interview_actual_time=empty_to_none(data.get('first_interview_actual_time')),
             first_interview_actual_interviewer=data.get('first_interview_actual_interviewer', ''),
             first_interview_result=data.get('first_interview_result', ''),
             first_interview_fail_reason=data.get('first_interview_fail_reason', ''),
-            second_interview_actual_time=data.get('second_interview_actual_time'),
+            second_interview_actual_time=empty_to_none(data.get('second_interview_actual_time')),
             second_interview_actual_interviewer=data.get('second_interview_actual_interviewer', ''),
             second_interview_result=data.get('second_interview_result', ''),
             second_interview_fail_reason=data.get('second_interview_fail_reason', ''),
-            expected_salary=data.get('expected_salary', ''),
-            salary_confirm_standard=data.get('salary_confirm_standard', ''),
+            # 薪资字段
+            basic_salary=empty_to_none(data.get('basic_salary')),
+            position_salary=empty_to_none(data.get('position_salary')),
+            performance_salary=empty_to_none(data.get('performance_salary')),
+            commission=empty_to_none(data.get('commission')),
+            allowance=empty_to_none(data.get('allowance')),
             probation_period=data.get('probation_period', ''),
             social_security_remarks=data.get('social_security_remarks', ''),
             onboard_department=data.get('onboard_department', ''),
             onboard_position=data.get('onboard_position', ''),
             job_level=data.get('job_level', ''),
-            expected_onboard_date=data.get('expected_onboard_date'),
+            expected_onboard_date=empty_to_none(data.get('expected_onboard_date')),
             offer_status=data.get('offer_status', ''),
             offer_reply=data.get('offer_reply', ''),
+            offer_reject_reason=data.get('offer_reject_reason', ''),
             # 文件字段
             registration_form_file=data.get('registration_form_url', ''),
             personality_test_file=data.get('personality_test_url', ''),
@@ -811,9 +823,40 @@ class RecruitmentProgressView(APIView):
             return Response({'message': '记录不存在'}, status=404)
         
         data = request.data
+        
+        # 字段映射：前端字段名 -> 后端字段名
+        field_mapping = {
+            'recommend_date': 'recommendation_date',
+            'invite_hr': 'inviting_hr',
+            'expected_arrival': 'expected_arrival_time',
+        }
+        
+        # 日期时间字段列表
+        datetime_fields = [
+            'recommendation_date', 'recommend_date',
+            'first_interview_time', 'second_interview_time',
+            'expected_arrival_time', 'expected_arrival',
+            'expected_interview_time', 'actual_interview_time',
+            'first_interview_actual_time', 'second_interview_actual_time',
+            'expected_onboard_date'
+        ]
+        
+        # 需要跳过的字段（系统自动生成或不允许修改）
+        skip_fields = ['id', 'created_at', 'updated_at']
+        
         for key, value in data.items():
-            if hasattr(progress, key):
-                setattr(progress, key, value)
+            # 获取后端字段名
+            model_field = field_mapping.get(key, key)
+            
+            # 跳过不允许修改的字段
+            if model_field in skip_fields:
+                continue
+            
+            if hasattr(progress, model_field):
+                # 处理空字符串日期字段
+                if model_field in datetime_fields and value == '':
+                    value = None
+                setattr(progress, model_field, value)
         progress.save()
         
         return Response({'message': '更新成功'})

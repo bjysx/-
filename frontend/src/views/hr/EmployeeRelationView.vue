@@ -551,8 +551,8 @@
         
         <h4 class="detail-section-title">薪资信息</h4>
         <el-descriptions :column="2" border>
-          <el-descriptions-item label="岗位工资">{{ currentEmployee.position_salary || '-' }}</el-descriptions-item>
           <el-descriptions-item label="基本工资">{{ currentEmployee.basic_salary }}</el-descriptions-item>
+          <el-descriptions-item label="岗位工资">{{ currentEmployee.position_salary || '-' }}</el-descriptions-item>
           <el-descriptions-item label="绩效工资">{{ currentEmployee.performance_salary }}</el-descriptions-item>
           <el-descriptions-item label="提成">{{ currentEmployee.commission }}</el-descriptions-item>
           <el-descriptions-item label="补助">{{ currentEmployee.allowance }}</el-descriptions-item>

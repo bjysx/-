@@ -183,15 +183,14 @@ class RecruitmentProgress(models.Model):
     second_interview_time = models.DateTimeField(blank=True, null=True, verbose_name="二面面试时间")
     second_interviewer = models.CharField(max_length=50, blank=True, null=True, verbose_name="二面面试官")
     
-    # 面试结果
-    interview_result = models.CharField(max_length=50, verbose_name="面试结果")
-    
     # 到岗时间
     expected_arrival_time = models.DateField(blank=True, null=True, verbose_name="预计到岗时间")
     
+    # 当前进度
+    current_progress = models.CharField(max_length=50, blank=True, null=True, verbose_name="当前进度")
+    
     # === 储备阶段 ===
-    reserve_status = models.CharField(max_length=20, blank=True, null=True, verbose_name="储备状态")
-    # created_at 自动作为新增时间
+    # created_at 自动作为新增时间，储备状态字段已移除
     
     # === 待面试阶段 ===
     expected_interview_time = models.DateTimeField(blank=True, null=True, verbose_name="预计面试时间")
@@ -212,19 +211,25 @@ class RecruitmentProgress(models.Model):
     second_interview_fail_reason = models.TextField(blank=True, null=True, verbose_name="复试未通过原因")
     
     # === 确认OFFER阶段 ===
-    expected_salary = models.CharField(max_length=50, blank=True, null=True, verbose_name="期待薪资")
-    salary_confirm_standard = models.CharField(max_length=100, blank=True, null=True, verbose_name="谈薪确认标准")
     probation_period = models.CharField(max_length=20, blank=True, null=True, verbose_name="转正期限")
     social_security_remarks = models.TextField(blank=True, null=True, verbose_name="社保备注")
     onboard_department = models.CharField(max_length=50, blank=True, null=True, verbose_name="入职部门")
     onboard_position = models.CharField(max_length=100, blank=True, null=True, verbose_name="入职岗位")
     job_level = models.CharField(max_length=20, blank=True, null=True, verbose_name="职级")
     expected_onboard_date = models.DateField(blank=True, null=True, verbose_name="预计入职日期")
+    # 薪资信息（排在预计入职日期后）
+    salary = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True, verbose_name="薪资")
+    basic_salary = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True, verbose_name="基本工资")
+    position_salary = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True, verbose_name="岗位工资")
+    performance_salary = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True, verbose_name="绩效工资")
+    commission = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True, verbose_name="提成")
+    allowance = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True, verbose_name="补助")
     
     # === 发OFFER阶段 ===
-    offer_status = models.CharField(max_length=20, blank=True, null=True, verbose_name="OFFER状态")  # 已发/未发/已接受/已拒绝
-    offer_reply = models.TextField(blank=True, null=True, verbose_name="OFFER回复")
-    
+    offer_status = models.CharField(max_length=20, blank=True, null=True, verbose_name="OFFER状态")  # 待发/已发
+    offer_reply = models.CharField(max_length=20, blank=True, null=True, verbose_name="OFFER回复")  # 接受/拒绝
+    offer_reject_reason = models.TextField(blank=True, null=True, verbose_name="拒绝原因")
+
     # 系统字段
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="更新时间")

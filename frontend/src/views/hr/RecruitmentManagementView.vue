@@ -28,12 +28,12 @@
               <el-option label="运营专员" value="运营专员" />
               <el-option label="销售经理" value="销售经理" />
             </el-select>
-            <el-select v-model="progressFilters.interview_result" placeholder="面试结果" clearable>
+            <el-select v-model="progressFilters.current_progress" placeholder="当前进度" clearable>
               <el-option label="待面试" value="待面试" />
-              <el-option label="一面通过" value="一面通过" />
-              <el-option label="一面未通过" value="一面未通过" />
-              <el-option label="二面通过" value="二面通过" />
-              <el-option label="二面未通过" value="二面未通过" />
+              <el-option label="初试通过" value="初试通过" />
+              <el-option label="初试未通过" value="初试未通过" />
+              <el-option label="复试通过" value="复试通过" />
+              <el-option label="复试未通过" value="复试未通过" />
               <el-option label="待发OFFER" value="待发OFFER" />
               <el-option label="已发OFFER待入职" value="已发OFFER待入职" />
               <el-option label="已入职" value="已入职" />
@@ -49,12 +49,6 @@
               <el-option label="张HR" value="张HR" />
               <el-option label="李HR" value="李HR" />
               <el-option label="王HR" value="王HR" />
-            </el-select>
-            <el-select v-model="progressFilters.expected_arrival" placeholder="预计到岗时间" clearable>
-              <el-option label="一周内" value="一周内" />
-              <el-option label="两周内" value="两周内" />
-              <el-option label="一个月内" value="一个月内" />
-              <el-option label="一个月后" value="一个月后" />
             </el-select>
             <div class="flex items-center gap-2">
               <span class="text-sm text-gray-600 whitespace-nowrap">推荐日期：</span>
@@ -137,6 +131,13 @@
           <el-table-column label="性别" prop="gender" width="60" />
           <el-table-column label="学历" prop="education" width="80" />
           <el-table-column label="邀约HR" prop="invite_hr" width="100" />
+          <el-table-column label="当前进度" prop="current_progress" width="120">
+            <template #default="{ row }">
+              <el-tag :type="getCurrentProgressType(row.current_progress)" size="small">
+                {{ row.current_progress || '待面试' }}
+              </el-tag>
+            </template>
+          </el-table-column>
           <el-table-column label="预计到岗时间" prop="expected_arrival" width="110" />
           <el-table-column label="操作" width="150" fixed="right">
             <template #default="{ row }">
@@ -220,25 +221,6 @@
               <el-col :span="12">
                 <el-form-item label="邀约HR">
                   <el-input v-model="detailForm.invite_hr" />
-                </el-form-item>
-              </el-col>
-            </el-row>
-
-            <!-- 储备阶段 -->
-            <h4 class="section-title">储备阶段</h4>
-            <el-row :gutter="20">
-              <el-col :span="12">
-                <el-form-item label="储备状态">
-                  <el-select v-model="detailForm.reserve_status" style="width: 100%">
-                    <el-option label="储备中" value="储备中" />
-                    <el-option label="已激活" value="已激活" />
-                    <el-option label="已放弃" value="已放弃" />
-                  </el-select>
-                </el-form-item>
-              </el-col>
-              <el-col :span="12">
-                <el-form-item label="新增时间">
-                  <el-input v-model="detailForm.created_at" disabled />
                 </el-form-item>
               </el-col>
             </el-row>
@@ -364,6 +346,43 @@
                 </el-form-item>
               </el-col>
             </el-row>
+            <!-- 薪资信息 -->
+            <el-row :gutter="20">
+              <el-col :span="12">
+                <el-form-item label="薪资">
+                  <el-input-number v-model="detailForm.salary" :min="0" :precision="2" style="width: 100%" />
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item label="基本工资">
+                  <el-input-number v-model="detailForm.basic_salary" :min="0" :precision="2" style="width: 100%" />
+                </el-form-item>
+              </el-col>
+            </el-row>
+            <el-row :gutter="20">
+              <el-col :span="12">
+                <el-form-item label="岗位工资">
+                  <el-input-number v-model="detailForm.position_salary" :min="0" :precision="2" style="width: 100%" />
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item label="绩效工资">
+                  <el-input-number v-model="detailForm.performance_salary" :min="0" :precision="2" style="width: 100%" />
+                </el-form-item>
+              </el-col>
+            </el-row>
+            <el-row :gutter="20">
+              <el-col :span="12">
+                <el-form-item label="提成">
+                  <el-input-number v-model="detailForm.commission" :min="0" :precision="2" style="width: 100%" />
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item label="补助">
+                  <el-input-number v-model="detailForm.allowance" :min="0" :precision="2" style="width: 100%" />
+                </el-form-item>
+              </el-col>
+            </el-row>
 
             <!-- 发Offer阶段 -->
             <h4 class="section-title">发Offer阶段</h4>
@@ -373,14 +392,22 @@
                   <el-select v-model="detailForm.offer_status" style="width: 100%">
                     <el-option label="待发" value="待发" />
                     <el-option label="已发" value="已发" />
-                    <el-option label="已接受" value="已接受" />
-                    <el-option label="已拒绝" value="已拒绝" />
                   </el-select>
                 </el-form-item>
               </el-col>
               <el-col :span="12">
                 <el-form-item label="Offer回复">
-                  <el-input v-model="detailForm.offer_reply" type="textarea" :rows="2" />
+                  <el-select v-model="detailForm.offer_reply" style="width: 100%">
+                    <el-option label="接受" value="接受" />
+                    <el-option label="拒绝" value="拒绝" />
+                  </el-select>
+                </el-form-item>
+              </el-col>
+            </el-row>
+            <el-row :gutter="20" v-if="detailForm.offer_reply === '拒绝'">
+              <el-col :span="24">
+                <el-form-item label="拒绝原因">
+                  <el-input v-model="detailForm.offer_reject_reason" type="textarea" :rows="2" placeholder="请输入拒绝原因" />
                 </el-form-item>
               </el-col>
             </el-row>
@@ -394,13 +421,13 @@
                 </el-form-item>
               </el-col>
               <el-col :span="12">
-                <el-form-item label="面试结果">
-                  <el-select v-model="detailForm.interview_result" style="width: 100%">
+                <el-form-item label="当前进度">
+                  <el-select v-model="detailForm.current_progress" style="width: 100%">
                     <el-option label="待面试" value="待面试" />
-                    <el-option label="一面通过" value="一面通过" />
-                    <el-option label="一面未通过" value="一面未通过" />
-                    <el-option label="二面通过" value="二面通过" />
-                    <el-option label="二面未通过" value="二面未通过" />
+                    <el-option label="初试通过" value="初试通过" />
+                    <el-option label="初试未通过" value="初试未通过" />
+                    <el-option label="复试通过" value="复试通过" />
+                    <el-option label="复试未通过" value="复试未通过" />
                     <el-option label="待发OFFER" value="待发OFFER" />
                     <el-option label="已发OFFER待入职" value="已发OFFER待入职" />
                     <el-option label="已入职" value="已入职" />
@@ -758,19 +785,6 @@
             </el-form-item>
           </el-col>
         </el-row>
-        <!-- 储备阶段 -->
-        <el-divider content-position="left">储备阶段</el-divider>
-        <el-row :gutter="20">
-          <el-col :span="12">
-            <el-form-item label="储备状态">
-              <el-select v-model="progressForm.reserve_status" placeholder="请选择" class="w-full">
-                <el-option label="储备中" value="储备中" />
-                <el-option label="已激活" value="已激活" />
-                <el-option label="已放弃" value="已放弃" />
-              </el-select>
-            </el-form-item>
-          </el-col>
-        </el-row>
 
         <!-- 初试阶段 -->
         <el-divider content-position="left">初试阶段</el-divider>
@@ -893,6 +907,43 @@
             </el-form-item>
           </el-col>
         </el-row>
+        <!-- 薪资信息 -->
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="薪资">
+              <el-input-number v-model="progressForm.salary" :min="0" :precision="2" class="w-full" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="基本工资">
+              <el-input-number v-model="progressForm.basic_salary" :min="0" :precision="2" class="w-full" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="岗位工资">
+              <el-input-number v-model="progressForm.position_salary" :min="0" :precision="2" class="w-full" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="绩效工资">
+              <el-input-number v-model="progressForm.performance_salary" :min="0" :precision="2" class="w-full" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="提成">
+              <el-input-number v-model="progressForm.commission" :min="0" :precision="2" class="w-full" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="补助">
+              <el-input-number v-model="progressForm.allowance" :min="0" :precision="2" class="w-full" />
+            </el-form-item>
+          </el-col>
+        </el-row>
 
         <!-- 发Offer阶段 -->
         <el-divider content-position="left">发Offer阶段</el-divider>
@@ -902,14 +953,22 @@
               <el-select v-model="progressForm.offer_status" placeholder="请选择" class="w-full">
                 <el-option label="待发" value="待发" />
                 <el-option label="已发" value="已发" />
-                <el-option label="已接受" value="已接受" />
-                <el-option label="已拒绝" value="已拒绝" />
               </el-select>
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="Offer回复">
-              <el-input v-model="progressForm.offer_reply" type="textarea" :rows="2" placeholder="请输入Offer回复" />
+              <el-select v-model="progressForm.offer_reply" placeholder="请选择" class="w-full">
+                <el-option label="接受" value="接受" />
+                <el-option label="拒绝" value="拒绝" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="20" v-if="progressForm.offer_reply === '拒绝'">
+          <el-col :span="24">
+            <el-form-item label="拒绝原因">
+              <el-input v-model="progressForm.offer_reject_reason" type="textarea" :rows="2" placeholder="请输入拒绝原因" />
             </el-form-item>
           </el-col>
         </el-row>
@@ -923,13 +982,13 @@
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="面试结果">
-              <el-select v-model="progressForm.interview_result" placeholder="请选择" class="w-full">
+            <el-form-item label="当前进度">
+              <el-select v-model="progressForm.current_progress" placeholder="请选择" class="w-full">
                 <el-option label="待面试" value="待面试" />
-                <el-option label="一面通过" value="一面通过" />
-                <el-option label="一面未通过" value="一面未通过" />
-                <el-option label="二面通过" value="二面通过" />
-                <el-option label="二面未通过" value="二面未通过" />
+                <el-option label="初试通过" value="初试通过" />
+                <el-option label="初试未通过" value="初试未通过" />
+                <el-option label="复试通过" value="复试通过" />
+                <el-option label="复试未通过" value="复试未通过" />
                 <el-option label="待发OFFER" value="待发OFFER" />
                 <el-option label="已发OFFER待入职" value="已发OFFER待入职" />
                 <el-option label="已入职" value="已入职" />
@@ -1196,10 +1255,9 @@ const handlePageChange = (page) => {
 const progressFilters = reactive({
   department: '',
   position: '',
-  interview_result: '',
+  current_progress: '',
   candidate_name: '',
   invite_hr: '',
-  expected_arrival: '',
   recommend_date_range: [],
   arrival_date_range: []
 })
@@ -1213,13 +1271,13 @@ const progressPagination = reactive({
   total: 0
 })
 
-const getInterviewResultType = (result) => {
+const getCurrentProgressType = (result) => {
   const map = {
     '待面试': 'info',
-    '一面通过': 'warning',
-    '一面未通过': 'danger',
-    '二面通过': 'warning',
-    '二面未通过': 'danger',
+    '初试通过': 'warning',
+    '初试未通过': 'danger',
+    '复试通过': 'warning',
+    '复试未通过': 'danger',
     '待发OFFER': 'primary',
     '已发OFFER待入职': 'success',
     '已入职': 'success',
@@ -1238,10 +1296,9 @@ const handleProgressSearch = () => {
 const handleProgressReset = () => {
   progressFilters.department = ''
   progressFilters.position = ''
-  progressFilters.interview_result = ''
+  progressFilters.current_progress = ''
   progressFilters.candidate_name = ''
   progressFilters.invite_hr = ''
-  progressFilters.expected_arrival = ''
   progressFilters.recommend_date_range = []
   progressFilters.arrival_date_range = []
   handleProgressSearch()
@@ -1291,16 +1348,8 @@ const progressForm = reactive({
   first_interviewer: '',
   second_interview_time: '',
   second_interviewer: '',
-  interview_result: '待面试',
+  current_progress: '待面试',
   expected_arrival: '',
-  // 储备阶段
-  reserve_status: '',
-  created_at: '',
-  // 待面试阶段
-  expected_interview_time: '',
-  actual_interview_time: '',
-  is_attended: '',
-  is_video_interview: '',
   // 初试阶段
   first_interview_actual_time: '',
   first_interview_actual_interviewer: '',
@@ -1312,7 +1361,7 @@ const progressForm = reactive({
   second_interview_result: '',
   second_interview_fail_reason: '',
   // 确认offer阶段
-  expected_salary: '',
+  expected_salary: null,
   salary_confirm_standard: '',
   probation_period: '',
   social_security_remarks: '',
@@ -1320,9 +1369,17 @@ const progressForm = reactive({
   onboard_position: '',
   job_level: '',
   expected_onboard_date: '',
+  // 薪资信息（排在预计入职日期后）
+  salary: null,
+  basic_salary: null,
+  position_salary: null,
+  performance_salary: null,
+  commission: null,
+  allowance: null,
   // 发offer阶段
   offer_status: '',
-  offer_reply: ''
+  offer_reply: '',
+  offer_reject_reason: ''
 })
 
 // 详情对话框数据
@@ -1366,6 +1423,13 @@ const detailForm = reactive({
   onboard_position: '',
   job_level: '',
   expected_onboard_date: '',
+  // 薪资信息（排在预计入职日期后）
+  salary: null,
+  basic_salary: null,
+  position_salary: null,
+  performance_salary: null,
+  commission: null,
+  allowance: null,
   // 发offer阶段
   offer_status: '',
   offer_reply: '',
@@ -1374,7 +1438,7 @@ const detailForm = reactive({
   first_interviewer: '',
   second_interview_time: '',
   second_interviewer: '',
-  interview_result: '待面试',
+  current_progress: '待面试',
   expected_arrival: ''
 })
 
@@ -1396,23 +1460,19 @@ const handleProgressAdd = () => {
     first_interviewer: '',
     second_interview_time: '',
     second_interviewer: '',
-    interview_result: '待面试',
+    current_progress: '待面试',
     expected_arrival: '',
-    // 新增字段
-    reserve_status: '',
-    created_at: '',
-    expected_interview_time: '',
-    actual_interview_time: '',
-    is_attended: '',
-    is_video_interview: '',
+    // 初试阶段
     first_interview_actual_time: '',
     first_interview_actual_interviewer: '',
     first_interview_result: '',
     first_interview_fail_reason: '',
+    // 复试阶段
     second_interview_actual_time: '',
     second_interview_actual_interviewer: '',
     second_interview_result: '',
     second_interview_fail_reason: '',
+    // 确认offer阶段
     expected_salary: null,
     salary_confirm_standard: '',
     probation_period: '',
@@ -1421,11 +1481,17 @@ const handleProgressAdd = () => {
     onboard_position: '',
     job_level: '',
     expected_onboard_date: '',
+    // 薪资信息
+    salary: null,
+    basic_salary: null,
+    position_salary: null,
+    performance_salary: null,
+    commission: null,
+    allowance: null,
+    // 发offer阶段
     offer_status: '',
     offer_reply: '',
-    // 文件字段
-    registration_form_url: '',
-    personality_test_url: ''
+    offer_reject_reason: ''
   })
   // 重置文件列表
   resumeFileList.value = []
@@ -1535,15 +1601,23 @@ const handleProgressDetail = (row) => {
     onboard_position: row.onboard_position || '',
     job_level: row.job_level || '',
     expected_onboard_date: row.expected_onboard_date || '',
+    // 薪资信息（排在预计入职日期后）
+    salary: row.salary || null,
+    basic_salary: row.basic_salary || null,
+    position_salary: row.position_salary || null,
+    performance_salary: row.performance_salary || null,
+    commission: row.commission || null,
+    allowance: row.allowance || null,
     // 发offer阶段
     offer_status: row.offer_status || '',
     offer_reply: row.offer_reply || '',
+    offer_reject_reason: row.offer_reject_reason || '',
     // 其他字段
     first_interview_time: row.first_interview_time || '',
     first_interviewer: row.first_interviewer || '',
     second_interview_time: row.second_interview_time || '',
     second_interviewer: row.second_interviewer || '',
-    interview_result: row.interview_result || '待面试',
+    current_progress: row.current_progress || '待面试',
     expected_arrival: row.expected_arrival || ''
   })
   detailDialogVisible.value = true
@@ -1565,9 +1639,6 @@ const handleProgressEdit = (row) => {
     gender: row.gender || '',
     education: row.education || '',
     invite_hr: row.invite_hr || '',
-    // 储备阶段
-    reserve_status: row.reserve_status || '',
-    created_at: row.created_at || '',
     // 待面试阶段
     expected_interview_time: row.expected_interview_time || '',
     actual_interview_time: row.actual_interview_time || '',
@@ -1592,15 +1663,23 @@ const handleProgressEdit = (row) => {
     onboard_position: row.onboard_position || '',
     job_level: row.job_level || '',
     expected_onboard_date: row.expected_onboard_date || '',
+    // 薪资信息（排在预计入职日期后）
+    salary: row.salary || null,
+    basic_salary: row.basic_salary || null,
+    position_salary: row.position_salary || null,
+    performance_salary: row.performance_salary || null,
+    commission: row.commission || null,
+    allowance: row.allowance || null,
     // 发offer阶段
     offer_status: row.offer_status || '',
     offer_reply: row.offer_reply || '',
+    offer_reject_reason: row.offer_reject_reason || '',
     // 其他字段
     first_interview_time: row.first_interview_time || '',
     first_interviewer: row.first_interviewer || '',
     second_interview_time: row.second_interview_time || '',
     second_interviewer: row.second_interviewer || '',
-    interview_result: row.interview_result || '待面试',
+    current_progress: row.current_progress || '待面试',
     expected_arrival: row.expected_arrival || ''
   })
   detailDialogVisible.value = true
@@ -1637,7 +1716,7 @@ const loadProgressData = async () => {
       page_size: progressPagination.pageSize,
       department: progressFilters.department,
       position: progressFilters.position,
-      interview_result: progressFilters.interview_result,
+      current_progress: progressFilters.current_progress,
       keyword: progressFilters.candidate_name,
       hr: progressFilters.invite_hr
     }
