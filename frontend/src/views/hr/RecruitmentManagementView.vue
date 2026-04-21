@@ -1,8 +1,8 @@
 <template>
   <div class="page-shell">
     <section class="page-card">
-      <!-- 顶部标签切换 -->
-      <div class="mb-5">
+      <!-- 顶部标签切换 - 仅在没有子路由时显示 -->
+      <div v-if="showTabs" class="mb-5">
         <el-radio-group v-model="activeTab" size="large">
           <el-radio-button value="requirements">需求汇总</el-radio-button>
           <el-radio-button value="progress">招聘进度</el-radio-button>
@@ -10,7 +10,7 @@
       </div>
 
       <!-- 招聘进度界面 -->
-      <div v-if="activeTab === 'progress'">
+      <div v-if="showProgress">
         <!-- 筛选条件 -->
         <div class="bg-gray-50 p-4 rounded-lg mb-5">
           <div class="grid grid-cols-5 gap-4">
@@ -161,6 +161,15 @@
             @current-change="handleProgressPageChange"
           />
         </div>
+
+        <!-- 隐藏的文件上传输入框 -->
+        <input
+          ref="resumeFileInput"
+          type="file"
+          style="display: none"
+          accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png"
+          @change="handleResumeFileChange"
+        />
 
         <!-- 详情/修改对话框 -->
         <el-dialog v-model="detailDialogVisible" :title="detailDialogType === 'edit' ? '修改招聘进度' : '招聘进度详情'" width="900px" top="5vh">
@@ -447,7 +456,7 @@
       </div>
 
       <!-- 需求汇总界面 -->
-      <div v-if="activeTab === 'requirements'">
+      <div v-if="showRequirements">
         <!-- 筛选条件 -->
         <div class="bg-gray-50 p-4 rounded-lg mb-5">
           <div class="grid grid-cols-5 gap-4">
@@ -1054,7 +1063,8 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, watch } from 'vue'
+import { ref, reactive, onMounted, watch, computed } from 'vue'
+import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Refresh, Plus, Delete, Upload, Download, Collection, Document, Check } from '@element-plus/icons-vue'
 import {
@@ -1066,10 +1076,21 @@ import {
   getHRUsers,
   getRecruitmentProgress,
   createRecruitmentProgress,
-  updateRecruitmentProgress
+  updateRecruitmentProgress,
+  uploadCandidateResume,
+  downloadCandidateResume
 } from '@/api/recruitment'
 
-// 当前激活的标签页
+// 获取路由信息
+const route = useRoute()
+
+// 根据路由判断显示哪个内容
+const showProgress = computed(() => route.meta.pageCode === 'hr-recruitment-progress')
+const showRequirements = computed(() => route.meta.pageCode === 'hr-recruitment-requirements')
+// 是否显示标签切换（有子菜单时不显示）
+const showTabs = computed(() => false)
+
+// 当前激活的标签页（兼容旧逻辑，默认显示需求汇总）
 const activeTab = ref('requirements')
 
 // ========== 需求汇总相关 ==========
@@ -1546,12 +1567,99 @@ const handleProgressImport = () => {
   ElMessage.info('导入功能')
 }
 
+// 简历上传相关
+const currentUploadRow = ref(null)
+const resumeFileInput = ref(null)
+
 const uploadResume = (row) => {
-  ElMessage.info(`上传简历: ${row.candidate_name}`)
+  currentUploadRow.value = row
+  // 触发文件选择对话框
+  if (resumeFileInput.value) {
+    resumeFileInput.value.click()
+  }
 }
 
-const downloadResume = (row) => {
-  ElMessage.success(`下载简历: ${row.candidate_name}`)
+const handleResumeFileChange = async (event) => {
+  const file = event.target.files[0]
+  if (!file) return
+
+  if (!currentUploadRow.value) {
+    ElMessage.error('未选择候选人')
+    return
+  }
+
+  // 检查文件类型
+  const allowedTypes = ['.pdf', '.doc', '.docx', '.txt', '.rtf', '.jpg', '.jpeg', '.png']
+  const fileExt = '.' + file.name.split('.').pop().toLowerCase()
+  if (!allowedTypes.includes(fileExt)) {
+    ElMessage.error('请上传 PDF、Word、图片或文本格式的简历文件')
+    event.target.value = ''
+    return
+  }
+
+  // 检查文件大小（最大10MB）
+  const maxSize = 10 * 1024 * 1024
+  if (file.size > maxSize) {
+    ElMessage.error('文件大小不能超过10MB')
+    event.target.value = ''
+    return
+  }
+
+  try {
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('candidate_id', currentUploadRow.value.id)
+
+    const response = await uploadCandidateResume(formData)
+
+    if (response.success || response.data) {
+      ElMessage.success(`简历上传成功: ${currentUploadRow.value.candidate_name}`)
+      // 刷新数据以显示新的简历链接
+      loadProgressData()
+    } else {
+      ElMessage.error(response.message || '上传失败')
+    }
+  } catch (error) {
+    console.error('上传简历失败:', error)
+    ElMessage.error('上传简历失败，请检查网络连接')
+  } finally {
+    // 清空文件输入框，允许重复选择同一文件
+    event.target.value = ''
+    currentUploadRow.value = null
+  }
+}
+
+const downloadResume = async (row) => {
+  if (!row.resume_url) {
+    ElMessage.warning('该候选人没有上传简历')
+    return
+  }
+
+  try {
+    const response = await downloadCandidateResume(row.id)
+
+    // 创建 Blob 对象
+    const blob = new Blob([response])
+    const url = window.URL.createObjectURL(blob)
+
+    // 创建临时链接并点击下载
+    const link = document.createElement('a')
+    link.href = url
+    // 从 resume_url 中提取文件名，或使用候选人姓名
+    const fileName = row.resume_url.split('/').pop() || `${row.candidate_name}_简历`
+    link.download = fileName
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+
+    // 释放 URL 对象
+    window.URL.revokeObjectURL(url)
+
+    ElMessage.success(`下载简历成功: ${row.candidate_name}`)
+  } catch (error) {
+    console.error('下载简历失败:', error)
+    ElMessage.error('下载简历失败，请检查网络连接')
+  }
 }
 
 const viewResumeDetail = (row) => {
@@ -1796,12 +1904,10 @@ const handleRowDelete = async (row) => {
 }
 
 onMounted(() => {
-  loadData()
-})
-
-// 监听标签页切换，切换到招聘进度时加载数据
-watch(activeTab, (newVal) => {
-  if (newVal === 'progress') {
+  // 根据当前路由加载对应的数据
+  if (showRequirements.value) {
+    loadData()
+  } else if (showProgress.value) {
     loadProgressData()
   }
 })

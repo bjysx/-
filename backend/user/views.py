@@ -8,6 +8,7 @@ import base64
 import uuid
 from .serializers import CustomTokenObtainPairSerializer, UserSerializer
 from django.contrib.auth import get_user_model
+from .utils import log_operation, get_client_ip
 
 User = get_user_model()
 
@@ -16,6 +17,40 @@ class LoginView(TokenObtainPairView):
     Login and get JWT token
     """
     serializer_class = CustomTokenObtainPairSerializer
+
+    def post(self, request, *args, **kwargs):
+        # 获取IP地址
+        ip_address = self.get_client_ip(request)
+        user_agent = request.META.get('HTTP_USER_AGENT', '')
+        
+        response = super().post(request, *args, **kwargs)
+        
+        # 如果登录成功，记录日志
+        if response.status_code == 200:
+            username = request.data.get('username')
+            try:
+                user = User.objects.get(username=username)
+                log_operation(
+                    user=user,
+                    action='LOGIN',
+                    module='系统登录',
+                    description=f'用户 {username} 登录系统',
+                    ip_address=ip_address,
+                    user_agent=user_agent
+                )
+            except User.DoesNotExist:
+                pass
+        
+        return response
+    
+    def get_client_ip(self, request):
+        """获取客户端IP地址"""
+        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+        if x_forwarded_for:
+            ip = x_forwarded_for.split(',')[0]
+        else:
+            ip = request.META.get('REMOTE_ADDR')
+        return ip
 
 class UserInfoView(APIView):
     """
@@ -34,6 +69,14 @@ class LogoutView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request):
+        # 记录登出日志
+        log_operation(
+            user=request.user,
+            action='LOGOUT',
+            module='系统',
+            description='用户登出系统',
+            ip_address=get_client_ip(request)
+        )
         return Response({"message": "Successfully logged out"})
 
 class ChangePasswordView(APIView):
@@ -97,6 +140,78 @@ class UserListView(APIView):
             users = users.filter(department=department)
         serializer = UserSerializer(users, many=True)
         return Response(serializer.data)
+
+
+class OperationLogView(APIView):
+    """
+    操作日志查询（仅管理员可用）
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        """查询操作日志"""
+        # 检查是否为管理员
+        if not request.user.is_staff and request.user.role != 'admin':
+            return Response({'message': '无权限查看日志'}, status=403)
+        
+        # 获取查询参数
+        user_id = request.query_params.get('user_id', '')
+        action = request.query_params.get('action', '')
+        module = request.query_params.get('module', '')
+        start_date = request.query_params.get('start_date', '')
+        end_date = request.query_params.get('end_date', '')
+        keyword = request.query_params.get('keyword', '')
+        
+        # 构建查询
+        queryset = OperationLog.objects.all()
+        
+        if user_id:
+            queryset = queryset.filter(user_id=user_id)
+        if action:
+            queryset = queryset.filter(action=action)
+        if module:
+            queryset = queryset.filter(module=module)
+        if start_date:
+            queryset = queryset.filter(created_at__gte=start_date)
+        if end_date:
+            queryset = queryset.filter(created_at__lte=end_date)
+        if keyword:
+            queryset = queryset.filter(
+                models.Q(description__icontains=keyword) |
+                models.Q(ip_address__icontains=keyword) |
+                models.Q(user_name__icontains=keyword)
+            )
+        
+        # 分页
+        page = int(request.query_params.get('page', 1))
+        page_size = int(request.query_params.get('page_size', 20))
+        total = queryset.count()
+        
+        start = (page - 1) * page_size
+        end = start + page_size
+        results = queryset[start:end]
+        
+        # 序列化数据
+        data = []
+        for log in results:
+            data.append({
+                'id': log.id,
+                'user_id': log.user_id,
+                'user_name': log.user_name,
+                'action': log.action,
+                'module': log.module,
+                'description': log.description,
+                'ip_address': log.ip_address,
+                'user_agent': log.user_agent,
+                'created_at': log.created_at.strftime('%Y-%m-%d %H:%M:%S') if log.created_at else None,
+            })
+        
+        return Response({
+            'results': data,
+            'total': total,
+            'page': page,
+            'page_size': page_size
+        })
 
 
 class HRUserListView(APIView):
@@ -568,6 +683,14 @@ class RecruitmentRequirementView(APIView):
             remarks=data.get('remarks', ''),
         )
         
+        # 记录操作日志
+        OperationLog.log_action(
+            user=request.user,
+            action_type='CREATE',
+            module='招聘需求',
+            description=f"创建了招聘需求: {data.get('position')} - {data.get('department')}"
+        )
+        
         return Response({'id': requirement.id, 'message': '创建成功'}, status=201)
 
     def put(self, request, pk):
@@ -810,6 +933,17 @@ class RecruitmentProgressView(APIView):
             offer_reject_reason=data.get('offer_reject_reason', ''),
         )
         
+        # 记录操作日志
+        OperationLog.log_operation(
+            user=request.user,
+            action='CREATE',
+            module='招聘管理',
+            description=f'创建候选人记录: {progress.candidate_name}',
+            object_id=progress.id,
+            object_type='RecruitmentProgress',
+            ip_address=get_client_ip(request)
+        )
+        
         return Response({'id': progress.id, 'message': '创建成功'}, status=201)
 
     def put(self, request, pk):
@@ -866,4 +1000,105 @@ class RecruitmentProgressView(APIView):
             return Response({'message': '删除成功'})
         except RecruitmentProgress.DoesNotExist:
             return Response({'message': '记录不存在'}, status=404)
+
+
+class RecruitmentProgressResumeUploadView(APIView):
+    """
+    上传候选人简历
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        """上传简历文件"""
+        # 获取候选人ID
+        candidate_id = request.data.get('candidate_id')
+        if not candidate_id:
+            return Response({'success': False, 'message': '缺少候选人ID'}, status=400)
+        
+        try:
+            progress = RecruitmentProgress.objects.get(pk=candidate_id)
+        except RecruitmentProgress.DoesNotExist:
+            return Response({'success': False, 'message': '候选人记录不存在'}, status=404)
+        
+        # 获取上传的文件
+        file = request.FILES.get('file')
+        if not file:
+            return Response({'success': False, 'message': '请选择文件'}, status=400)
+        
+        # 检查文件类型
+        allowed_extensions = ['pdf', 'doc', 'docx', 'txt', 'jpg', 'jpeg', 'png']
+        ext = file.name.split('.')[-1].lower()
+        if ext not in allowed_extensions:
+            return Response({'success': False, 'message': f'不支持的文件类型，请上传: {", ".join(allowed_extensions)}'}, status=400)
+        
+        # 检查文件大小 (最大10MB)
+        if file.size > 10 * 1024 * 1024:
+            return Response({'success': False, 'message': '文件大小不能超过10MB'}, status=400)
+        
+        # 生成唯一文件名
+        filename = f"resumes/{uuid.uuid4()}_{file.name}"
+        
+        # 保存文件
+        file_path = default_storage.save(filename, ContentFile(file.read()))
+        
+        # 构建文件URL
+        resume_url = f"/media/{file_path}"
+        
+        # 更新记录的简历文件
+        progress.resume_file = file_path
+        progress.resume_file_name = file.name
+        progress.save()
+        
+        # 记录操作日志
+        OperationLog.log_operation(
+            user=request.user,
+            action='UPLOAD',
+            module='招聘管理',
+            description=f'为候选人【{progress.candidate_name}】上传简历: {file.name}',
+            ip_address=get_client_ip(request)
+        )
+        
+        return Response({
+            'success': True, 
+            'message': '上传成功',
+            'data': {
+                'resume_url': resume_url,
+                'file_name': file.name
+            }
+        })
+
+
+class RecruitmentProgressResumeDownloadView(APIView):
+    """
+    下载候选人简历
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, pk):
+        """下载简历文件"""
+        try:
+            progress = RecruitmentProgress.objects.get(pk=pk)
+        except RecruitmentProgress.DoesNotExist:
+            return Response({'message': '记录不存在'}, status=404)
+        
+        if not progress.resume_file:
+            return Response({'message': '该候选人没有上传简历'}, status=404)
+        
+        try:
+            # 打开文件
+            file_path = progress.resume_file.path
+            with open(file_path, 'rb') as f:
+                file_content = f.read()
+            
+            # 获取文件名
+            file_name = progress.resume_file_name or f"resume_{progress.candidate_name}"
+            
+            # 创建响应
+            from django.http import HttpResponse
+            response = HttpResponse(file_content, content_type='application/octet-stream')
+            response['Content-Disposition'] = f'attachment; filename="{file_name}"'
+            return response
+        except Exception as e:
+            return Response({'message': f'文件读取失败: {str(e)}'}, status=500)
+
 

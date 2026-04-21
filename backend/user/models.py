@@ -242,3 +242,112 @@ class RecruitmentProgress(models.Model):
     
     def __str__(self):
         return self.candidate_name
+
+
+class OperationLog(models.Model):
+    """
+    操作日志表
+    记录用户的登录和关键操作
+    """
+    # 操作类型
+    ACTION_TYPES = [
+        ('LOGIN', '登录'),
+        ('LOGOUT', '登出'),
+        ('CREATE', '新增'),
+        ('UPDATE', '修改'),
+        ('DELETE', '删除'),
+        ('UPLOAD', '上传'),
+        ('DOWNLOAD', '下载'),
+        ('VIEW', '查看'),
+        ('EXPORT', '导出'),
+        ('IMPORT', '导入'),
+        ('OTHER', '其他'),
+    ]
+    
+    # 操作模块
+    MODULES = [
+        ('系统', '系统'),
+        ('用户管理', '用户管理'),
+        ('招聘管理', '招聘管理'),
+        ('员工关系', '员工关系'),
+        ('其他', '其他'),
+    ]
+    
+    # 状态
+    STATUS_CHOICES = [
+        ('success', '成功'),
+        ('failed', '失败'),
+    ]
+    
+    id = models.AutoField(primary_key=True, verbose_name="日志ID")
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="操作用户")
+    action = models.CharField(max_length=20, choices=ACTION_TYPES, verbose_name="操作类型")
+    module = models.CharField(max_length=20, choices=MODULES, verbose_name="操作模块")
+    description = models.TextField(verbose_name="操作描述")
+    object_type = models.CharField(max_length=50, blank=True, null=True, verbose_name="对象类型")
+    object_id = models.CharField(max_length=50, blank=True, null=True, verbose_name="对象ID")
+    object_name = models.CharField(max_length=255, blank=True, null=True, verbose_name="对象名称")
+    details = models.JSONField(blank=True, null=True, verbose_name="详细内容")
+    ip_address = models.CharField(max_length=50, blank=True, null=True, verbose_name="IP地址")
+    user_agent = models.TextField(blank=True, null=True, verbose_name="用户代理")
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='success', verbose_name="操作状态")
+    message = models.TextField(blank=True, null=True, verbose_name="消息")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="操作时间")
+    
+    class Meta:
+        db_table = 'operation_log'
+        verbose_name = '操作日志'
+        verbose_name_plural = verbose_name
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['user', 'created_at']),
+            models.Index(fields=['action', 'created_at']),
+            models.Index(fields=['module', 'created_at']),
+        ]
+    
+    def __str__(self):
+        return f"{self.user.username if self.user else '匿名'} - {self.get_action_display()} - {self.created_at}"
+    
+    @classmethod
+    def log_operation(cls, user, action, module, description, object_id=None, object_type=None, object_name=None, details=None, request=None, status='success', message=None):
+        """
+        便捷方法：记录操作日志
+        
+        参数:
+            user: 用户对象
+            action: 操作类型 (LOGIN, LOGOUT, CREATE, UPDATE, DELETE, etc.)
+            module: 模块名称
+            description: 操作描述
+            object_id: 对象ID
+            object_type: 对象类型
+            object_name: 对象名称
+            details: 详细信息 (JSON格式)
+            request: HTTP请求对象 (自动提取IP和User-Agent)
+            status: 操作状态 (success/failed)
+            message: 附加消息
+        """
+        # 从request中提取IP和User-Agent
+        ip_address = None
+        user_agent = None
+        if request:
+            x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+            if x_forwarded_for:
+                ip_address = x_forwarded_for.split(',')[0]
+            else:
+                ip_address = request.META.get('REMOTE_ADDR')
+            user_agent = request.META.get('HTTP_USER_AGENT', '')
+        
+        return cls.objects.create(
+            user=user,
+            action=action,
+            module=module,
+            description=description,
+            object_id=str(object_id) if object_id else None,
+            object_type=object_type,
+            object_name=object_name,
+            details=details,
+            ip_address=ip_address,
+            user_agent=user_agent,
+            status=status,
+            message=message
+        )

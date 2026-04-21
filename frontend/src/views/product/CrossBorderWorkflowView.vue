@@ -310,7 +310,7 @@
               </el-button>
               <el-button v-if="row.status === 'pending'" type="success" link size="small" @click="submitWorkflow(row)">提交</el-button>
               <el-button v-if="userInfo && userInfo.id && row.merchandiser === userInfo.id" type="warning" link size="small" @click="openEliminateDialog(row)">淘汰</el-button>
-              <el-button v-if="row.current_stage === 'eliminated'" type="danger" link size="small" @click="viewEliminateReason(row)">淘汰</el-button>
+              <el-button v-if="row.current_stage === '0'" type="danger" link size="small" @click="viewEliminateReason(row)">淘汰</el-button>
               <el-button v-if="filters.workflow_type === 'production'" type="success" link size="small" @click="stockIn(row)">入库</el-button>
               <el-popconfirm title="确定删除此工作流？" @confirm="deleteWorkflowItem(row)" confirm-button-text="确定" cancel-button-text="取消">
                 <template #reference>
@@ -467,8 +467,8 @@
             </div>
             <div>
               <p class="text-sm text-slate-500">状态</p>
-              <el-tag :type="currentWorkflow.current_stage === 'eliminated' ? statusTypeMap.eliminated : (statusTypeMap[currentWorkflow.status] || 'info')" effect="light">
-                {{ currentWorkflow.current_stage === 'eliminated' ? statusTextMap.eliminated : (statusTextMap[currentWorkflow.status] || currentWorkflow.status) }}
+              <el-tag :type="currentWorkflow.current_stage === '0' ? statusTypeMap.eliminated : (statusTypeMap[currentWorkflow.status] || 'info')" effect="light">
+                {{ currentWorkflow.current_stage === '0' ? statusTextMap.eliminated : (statusTextMap[currentWorkflow.status] || currentWorkflow.status) }}
               </el-tag>
             </div>
             <div>
@@ -943,7 +943,7 @@
                   </div>
                   <div v-if="currentWorkflow && currentWorkflow.status === 'in_progress' && currentWorkflow.current_stage === 3 && currentWorkflow.current_stage !== 'eliminated' && userInfo && userInfo.id && currentWorkflow.merchandiser === userInfo.id" class="mt-3 flex gap-2">
                     <el-button type="primary" size="small" @click="openMerchandiserProgressDialog(currentWorkflow)">更新跟单进度</el-button>
-                    <el-button type="success" size="small" @click="completeMerchandiserProgress(currentWorkflow)">完成</el-button>
+                    <el-button type="success" size="small" @click="openApproveDialog(currentWorkflow, 'confirm_logo', '完成跟单进度并选择业务员')">完成</el-button>
                     <el-button type="danger" size="small" @click="rejectWorkflow(currentWorkflow)">拒绝</el-button>
                   </div>
                 </div>
@@ -1209,6 +1209,14 @@
           <el-input v-model="approveForm.comments" type="textarea" :rows="3" maxlength="500" show-word-limit />
         </el-form-item>
         <el-form-item v-if="approveDialogType === 'select_supplier'" label="跟单备注">
+          <el-input v-model="approveForm.comments" type="textarea" :rows="3" maxlength="500" show-word-limit />
+        </el-form-item>
+        <el-form-item v-if="approveDialogType === 'confirm_logo'" label="选择业务人员" prop="salesperson">
+          <el-select v-model="approveForm.salesperson" class="w-full">
+            <el-option v-for="user in users" :key="user.id" :label="user.username" :value="user.id" />
+          </el-select>
+        </el-form-item>
+        <el-form-item v-if="approveDialogType === 'confirm_logo'" label="备注（选填）">
           <el-input v-model="approveForm.comments" type="textarea" :rows="3" maxlength="500" show-word-limit />
         </el-form-item>
       </el-form>
@@ -1859,7 +1867,7 @@ function getStageStatusText(stage) {
 }
 
 function getStageName(currentStage) {
-  if (currentStage === 'eliminated') {
+  if (currentStage === '0') {
     return '淘汰'
   }
   const stageNames = {
@@ -1930,8 +1938,13 @@ async function submitApproveForm() {
   }
   submitting.value = true
   try {
+    // 根据对话框类型确定 action
+    let action = approveDialogType.value
+    if (approveDialogType.value === "confirm_logo") {
+      action = "complete_merchandiser_progress"
+    }
     await updateWorkflowStatus(currentWorkflow.value.id, {
-      action: approveDialogType.value,
+      action: action,
       ...approveForm
     })
     ElMessage.success("操作成功")
@@ -1952,7 +1965,7 @@ function selectSupplier(workflow) {
 }
 
 function confirmLogo(workflow) {
-  openApproveDialog(workflow, "confirm_logo", "更新跟单进度")
+  openApproveDialog(workflow, "confirm_logo", "完成跟单进度并选择业务员")
 }
 
 function placeSampleOrder(workflow) {

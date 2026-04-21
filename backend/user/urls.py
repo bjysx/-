@@ -2,7 +2,8 @@ from django.urls import path
 from .views import (
     LoginView, UserInfoView, LogoutView, ChangePasswordView, AvatarUploadView, UserListView, HRUserListView,
     EmployeeRelationView, EmployeeRosterView, ResignedEmployeeView, EmployeeOtherView,
-    RecruitmentRequirementView, RecruitmentProgressView
+    RecruitmentRequirementView, RecruitmentProgressView,     RecruitmentProgressResumeUploadView, RecruitmentProgressResumeDownloadView,
+    OperationLogView
 )
 from rest_framework_simplejwt.views import TokenRefreshView
 
@@ -28,4 +29,9 @@ urlpatterns = [
     # 招聘管理 - 招聘进度
     path('recruitment-progress/', RecruitmentProgressView.as_view(), name='recruitment_progress'),
     path('recruitment-progress/<int:pk>/', RecruitmentProgressView.as_view(), name='recruitment_progress_detail'),
+    # 招聘进度 - 简历上传/下载
+    path('recruitment-progress/upload-resume/', RecruitmentProgressResumeUploadView.as_view(), name='recruitment_progress_upload_resume'),
+    path('recruitment-progress/<int:pk>/download-resume/', RecruitmentProgressResumeDownloadView.as_view(), name='recruitment_progress_download_resume'),
+    # 操作日志
+    path('operation-logs/', OperationLogView.as_view(), name='operation_logs'),
 ]

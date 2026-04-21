@@ -47,7 +47,8 @@ export function useAppStore() {
       applyTheme(state.theme === "dark" ? "light" : "dark")
     },
     availableMenus() {
-      return auth.state.menus?.length ? auth.state.menus : menuConfig
+      // 使用本地菜单配置，确保包含最新的子菜单结构
+      return menuConfig
     }
   }
 }

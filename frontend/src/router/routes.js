@@ -37,6 +37,8 @@ export const protectedRoutes = [
                   page.pageCode === "hr-resigned-employees" ? GenericPageView : 
                   page.pageCode === "hr-employee-others" ? GenericPageView :
                   page.pageCode === "hr-recruitment-management" ? RecruitmentManagementView :
+                  page.pageCode === "hr-recruitment-requirements" ? RecruitmentManagementView :
+                  page.pageCode === "hr-recruitment-progress" ? RecruitmentManagementView :
                   GenericPageView,
         meta: {
           title: page.title,

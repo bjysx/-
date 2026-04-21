@@ -86,7 +86,14 @@ export const menuConfig = [
     icon: "User",
     children: [
       { key: "hr-goal-management", title: "目标管理版块", path: "/hr/goal-management", pageCode: "hr-goal-management" },
-      { key: "hr-recruitment-management", title: "招聘管理", path: "/hr/recruitment-management", pageCode: "hr-recruitment-management" },
+      {
+        key: "hr-recruitment-management",
+        title: "招聘管理",
+        children: [
+          { key: "hr-recruitment-requirements", title: "需求汇总", path: "/hr/requirements-summary", pageCode: "hr-recruitment-requirements" },
+          { key: "hr-recruitment-progress", title: "招聘进度", path: "/hr/recruitment-progress", pageCode: "hr-recruitment-progress" }
+        ]
+      },
       { key: "hr-compensation-benefits", title: "薪资福利管理", path: "/hr/compensation-benefits", pageCode: "hr-compensation-benefits" },
       { key: "hr-performance-management", title: "绩效管理", path: "/hr/performance-management", pageCode: "hr-performance-management" },
       {

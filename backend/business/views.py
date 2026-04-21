@@ -16,6 +16,7 @@ import uuid
 import random
 import logging
 
+
 logger = logging.getLogger(__name__)
 
 PRODUCT_FIELDS_DEFINITION = [
@@ -454,7 +455,7 @@ class ProductExportView(APIView):
         wb.save(output)
         output.seek(0)
 
-        filename = f"商品信息表_{datetime.now().strftime('%Y%m%d%H%M%S')}.xlsx"
+        filename = f"商品信息表_{timezone.now().strftime('%Y%m%d%H%M%S')}.xlsx"
         response = HttpResponse(
             output.read(),
             content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
@@ -870,7 +871,7 @@ class WorkflowListView(APIView):
             if workflow_type == "order":
                 queryset = queryset.filter(
                     Q(workflow_type="order") |
-                    Q(workflow_type="sample", current_stage="12")  # 样品对接完成的流程也显示在订单处理中
+                    Q(workflow_type="sample", current_stage="11")  # 样品对接完成的流程也显示在订单处理中
                 )
             elif workflow_type == "production":
                 queryset = queryset.filter(
@@ -1026,7 +1027,7 @@ class WorkflowStatusView(APIView):
             if workflow.approver != user:
                 return Response({"message": "你没有这个权限"})
             workflow.approver = user
-            workflow.approval_time = datetime.now()
+            workflow.approval_time = timezone.now()
             workflow.approval_comments = payload.get("comments")
             workflow.current_stage = "2"
             workflow.progress = 11
@@ -1072,10 +1073,9 @@ class WorkflowStatusView(APIView):
                 return Response({"message": "你没有这个权限"})
             new_records = payload.get("progress_records", [])
             # 为每条新记录添加更新时间
-            from datetime import datetime
             for record in new_records:
                 if not record.get("time"):
-                    record["time"] = datetime.now().strftime("%Y-%m-%d %H:%M")
+                    record["time"] = timezone.now().strftime("%Y-%m-%d %H:%M")
             # 获取已有记录并追加新记录
             existing_records = workflow.merchandiser_progress_records or []
             all_records = existing_records + new_records
@@ -1089,12 +1089,34 @@ class WorkflowStatusView(APIView):
             # 完成跟单进度阶段
             if workflow.merchandiser != user:
                 return Response({"message": "你没有这个权限"})
+            # 保存业务员信息
+            salesperson_id = payload.get("salesperson")
+            if salesperson_id:
+                workflow.salesperson_id = salesperson_id
             workflow.current_stage = "5"
             workflow.progress = 44
             workflow.save()
+            # 发送通知给业务员
+            if salesperson_id:
+                from user.models import User
+                try:
+                    salesperson = User.objects.get(id=salesperson_id)
+                    logger.info(f"发送通知给业务员 {salesperson.username}：工作流 {workflow.product_name or '未命名产品'} 跟单进度已完成，请等待样品送达")
+                except User.DoesNotExist:
+                    pass
             # 发送通知给跟单员（下样品单）
             if workflow.merchandiser:
                 logger.info(f"发送通知给跟单员 {workflow.merchandiser.username}：工作流 {workflow.product_name or '未命名产品'} 跟单进度已确认完成，请下样品单")
+            return Response({
+                "message": "跟单进度阶段已完成，请下样品单",
+                "current_stage": workflow.current_stage,
+                "progress": workflow.progress
+            })
+            return Response({
+                "message": "跟单进度阶段已完成，请下样品单",
+                "current_stage": workflow.current_stage,
+                "progress": workflow.progress
+            })
             return Response({
                 "message": "跟单进度阶段已完成，请下样品单",
                 "current_stage": workflow.current_stage,
@@ -1105,7 +1127,7 @@ class WorkflowStatusView(APIView):
             if workflow.merchandiser != user:
                 return Response({"message": "你没有这个权限"})
             workflow.sample_order_number = payload.get("sample_order_number")
-            workflow.sample_order_time = datetime.now()
+            workflow.sample_order_time = timezone.now()
             workflow.sample_delivery_comments = payload.get("comments")  # 保存备注
             workflow.salesperson_id = payload.get("salesperson")
             salesperson_id = payload.get("salesperson")
@@ -1124,7 +1146,7 @@ class WorkflowStatusView(APIView):
             if workflow.salesperson != user:
                 return Response({"message": "你没有这个权限"})
             workflow.salesperson = user
-            workflow.salesperson_approval_time = datetime.now()
+            workflow.salesperson_approval_time = timezone.now()
             workflow.salesperson_comments = payload.get("comments")
             workflow.operator_id = payload.get("operator")
             operator_id = payload.get("operator")
@@ -1138,12 +1160,17 @@ class WorkflowStatusView(APIView):
                 logger.info(f"发送通知给运营人员 {operator.username}：工作流 {workflow.product_name or '未命名产品'} 材质已审核，请审核数据价格")
             except User.DoesNotExist:
                 pass
+            return Response({
+                "message": "材质审核完成，流程已推进到运营审核数据价格",
+                "current_stage": workflow.current_stage,
+                "progress": workflow.progress
+            })
         elif action == "operator_approve":
             # 首色对接-运营审核数据价格
             if workflow.operator != user:
                 return Response({"message": "你没有这个权限"})
             workflow.operator = user
-            workflow.operator_approval_time = datetime.now()
+            workflow.operator_approval_time = timezone.now()
             workflow.operator_comments = payload.get("comments")
             workflow.current_stage = "7"
             workflow.progress = 66
@@ -1151,11 +1178,16 @@ class WorkflowStatusView(APIView):
             # 发送通知给业务人员（审核全色）
             if workflow.salesperson:
                 logger.info(f"发送通知给业务人员 {workflow.salesperson.username}：工作流 {workflow.product_name or '未命名产品'} 数据价格已确认，请审核全色")
+            return Response({
+                "message": "数据价格已确认，流程已推进到全色审核",
+                "current_stage": workflow.current_stage,
+                "progress": workflow.progress
+            })
         elif action == "salesperson_approve_full_color":
             # 全色对接-业务审核材质
             if workflow.salesperson != user:
                 return Response({"message": "你没有这个权限"})
-            workflow.salesperson_approval_time = datetime.now()
+            workflow.salesperson_approval_time = timezone.now()
             workflow.salesperson_comments = payload.get("comments")
             workflow.current_stage = "8"
             workflow.progress = 77
@@ -1163,11 +1195,16 @@ class WorkflowStatusView(APIView):
             # 发送通知给运营人员（审核全色）
             if workflow.operator:
                 logger.info(f"发送通知给运营人员 {workflow.operator.username}：工作流 {workflow.product_name or '未命名产品'} 全色材质已确认，请审核数据价格")
+            return Response({
+                "message": "全色材质已确认，请等待运营审核数据价格",
+                "current_stage": workflow.current_stage,
+                "progress": workflow.progress
+            })
         elif action == "operator_approve_full_color":
             # 全色对接-运营审核数据价格并选择摄影师
             if workflow.operator != user:
                 return Response({"message": "你没有这个权限"})
-            workflow.operator_approval_time = datetime.now()
+            workflow.operator_approval_time = timezone.now()
             workflow.operator_comments = payload.get("comments")
             workflow.photographer_id = payload.get("photographer")
             photographer_id = payload.get("photographer")
@@ -1181,12 +1218,17 @@ class WorkflowStatusView(APIView):
                 logger.info(f"发送通知给摄影师 {photographer.username}：工作流 {workflow.product_name or '未命名产品'} 全色数据价格已确认，请上传白底")
             except User.DoesNotExist:
                 pass
+            return Response({
+                "message": "全色数据价格已确认，流程已推进到摄影师上传白底",
+                "current_stage": workflow.current_stage,
+                "progress": workflow.progress
+            })
         elif action == "photographer_approve":
             # 摄影师上传白底
             if workflow.photographer != user:
                 return Response({"message": "你没有这个权限"})
             workflow.photographer = user
-            workflow.photographer_approval_time = datetime.now()
+            workflow.photographer_approval_time = timezone.now()
             workflow.photographer_comments = payload.get("comments")
             workflow.white_background_images = payload.get("white_background_images", [])
             workflow.clerk_id = payload.get("clerk")
@@ -1201,21 +1243,32 @@ class WorkflowStatusView(APIView):
                 logger.info(f"发送通知给文员 {clerk.username}：工作流 {workflow.product_name or '未命名产品'} 白底已上传，请审核")
             except User.DoesNotExist:
                 pass
+            return Response({
+                "message": "白底图已上传，流程已推进到文员审核",
+                "current_stage": workflow.current_stage,
+                "progress": workflow.progress
+            })
         elif action == "clerk_approve":
             # 文员审核白底
             if workflow.clerk != user:
                 return Response({"message": "你没有这个权限"})
             workflow.clerk = user
-            workflow.clerk_approval_time = datetime.now()
+            workflow.clerk_approval_time = timezone.now()
             workflow.clerk_comments = payload.get("comments")
             workflow.status = "completed"
             workflow.progress = 100
-            workflow.current_stage = "样品对接完成"
+            workflow.current_stage = "11"  # 样品对接完成
             workflow.workflow_type = "order"  # 样品对接完成，进入订单处理流程
             workflow.save()
             # 发送通知给申请人
             if workflow.applicant:
                 logger.info(f"发送通知给申请人 {workflow.applicant.username}：工作流 {workflow.product_name or '未命名产品'} 样品对接已完成，进入订单处理流程")
+            return Response({
+                "message": "文员审核完成，样品对接流程已完成",
+                "current_stage": workflow.current_stage,
+                "progress": workflow.progress,
+                "status": workflow.status
+            })
         elif action == "reject":
             # 拒绝工作流，返回上一步
             workflow.status = "in_progress"
@@ -1292,18 +1345,27 @@ class WorkflowStatusView(APIView):
             except ValueError:
                 # 如果current_stage不是数字（例如'eliminated'），则不做处理
                 pass
+            return Response({
+                "message": "已退回上一步",
+                "current_stage": workflow.current_stage,
+                "progress": workflow.progress
+            })
         elif action == "eliminate":
             # 淘汰工作流
             if workflow.merchandiser != user:
                 return Response({"message": "你没有这个权限"})
-            workflow.current_stage = "eliminated"
+            workflow.current_stage = "0"  # 淘汰状态用0表示
             workflow.eliminate_reason = payload.get("eliminate_reason")
-            workflow.eliminate_time = datetime.now()
+            workflow.eliminate_time = timezone.now()
             workflow.eliminator = user
             workflow.save()
             # 发送通知给申请人
             if workflow.applicant:
                 logger.info(f"发送通知给申请人 {workflow.applicant.username}：工作流 {workflow.product_name or '未命名产品'} 已被淘汰")
+            return Response({
+                "message": "工作流已淘汰",
+                "current_stage": workflow.current_stage
+            })
         elif action == "create_electronic_order":
             # 制作或修改电子订单
             if workflow.clerk != user:
@@ -1318,11 +1380,15 @@ class WorkflowStatusView(APIView):
             workflow.order_items = order_items
             # 如果是第一次创建订单，设置下单日期
             if not workflow.order_created_time:
-                workflow.order_created_time = datetime.now()
+                workflow.order_created_time = timezone.now()
             workflow.save()
             # 发送通知给相关人员
             if workflow.applicant:
                 logger.info(f"发送通知给申请人 {workflow.applicant.username}：工作流 {workflow.product_name or '未命名产品'} 电子订单已{'制作' if not workflow.order_created else '修改'}完成")
+            return Response({
+                "message": "电子订单已保存",
+                "current_stage": workflow.current_stage
+            })
         elif action == "approve_order_material":
             # 业务审核材质
             if workflow.salesperson != user:
@@ -1332,61 +1398,10 @@ class WorkflowStatusView(APIView):
             # 发送通知给相关人员
             if workflow.applicant:
                 logger.info(f"发送通知给申请人 {workflow.applicant.username}：工作流 {workflow.product_name or '未命名产品'} 业务审核材质已完成")
-        elif action == "approve_order_data_price":
-            # 运营审核数据价格
-            if workflow.operator != user:
-                return Response({"message": "你没有这个权限"})
-            workflow.order_stage = 3
-            # 保存部门领导人信息
-            operator_leader_id = payload.get("operator_leader")
-            if operator_leader_id:
-                workflow.operator_leader_id = operator_leader_id
-            workflow.save()
-            # 发送通知给相关人员
-            if workflow.applicant:
-                logger.info(f"发送通知给申请人 {workflow.applicant.username}：工作流 {workflow.product_name or '未命名产品'} 运营审核数据价格已完成")
-        elif action == "approve_order_data_price_by_leader":
-            # 运营部门领导审核数据价格
-            # 这里可以根据实际情况添加权限检查
-            workflow.order_stage = 4
-            workflow.current_stage = "production"
-            workflow.workflow_type = "production"
-            workflow.save()
-            # 发送通知给相关人员
-            if workflow.applicant:
-                logger.info(f"发送通知给申请人 {workflow.applicant.username}：工作流 {workflow.product_name or '未命名产品'} 运营部门领导审核数据价格已完成，已进入大货生产阶段")
-        elif action == "reject_order_material":
-            # 业务审核材质拒绝
-            if workflow.salesperson != user:
-                return Response({"message": "你没有这个权限"})
-            workflow.order_stage = 0
-            workflow.save()
-            # 发送通知给相关人员
-            if workflow.applicant:
-                logger.info(f"发送通知给申请人 {workflow.applicant.username}：工作流 {workflow.product_name or '未命名产品'} 业务审核材质已拒绝")
-        elif action == "reject_order_data_price":
-            # 运营审核数据价格拒绝
-            if workflow.operator != user:
-                return Response({"message": "你没有这个权限"})
-            workflow.order_stage = 1
-            workflow.save()
-            # 发送通知给相关人员
-            if workflow.applicant:
-                logger.info(f"发送通知给申请人 {workflow.applicant.username}：工作流 {workflow.product_name or '未命名产品'} 运营审核数据价格已拒绝")
-        elif action == "reject_order_data_price_by_leader":
-            # 运营部门领导审核数据价格拒绝
-            # 这里可以根据实际情况添加权限检查
-            workflow.order_stage = 2
-            workflow.save()
-            # 发送通知给相关人员
-            if workflow.applicant:
-                logger.info(f"发送通知给申请人 {workflow.applicant.username}：工作流 {workflow.product_name or '未命名产品'} 运营部门领导审核数据价格已拒绝")
-        elif action == "stock_in":
-            # 入库操作
-            workflow.current_stage = "stocked"
-            workflow.save()
-            if workflow.applicant:
-                logger.info(f"发送通知给申请人 {workflow.applicant.username}：工作流 {workflow.product_name or '未命名产品'} 已入库")
+            return Response({
+                "message": "业务审核材质完成",
+                "current_stage": workflow.current_stage
+            })
 
         # ========== 双星工作流状态变更 ==========
         elif action == "ds_approve":
@@ -1401,7 +1416,7 @@ class WorkflowStatusView(APIView):
                 logger.error('[WorkflowStatusView] 缺少必填字段: supplier')
                 return Response({"message": "请选择供应商"}, status=400)
 
-            workflow.approval_time = datetime.now()
+            workflow.approval_time = timezone.now()
             workflow.approval_comments = payload.get("comments")
             workflow.supplier = supplier
             try:
@@ -1429,7 +1444,7 @@ class WorkflowStatusView(APIView):
             workflow.futures_spot_season = payload.get("futures_spot_season")
             workflow.sample_order_remarks = payload.get("comments")
             workflow.photographer_id = payload.get("photographer")
-            workflow.sample_order_time = datetime.now()
+            workflow.sample_order_time = timezone.now()
             workflow.current_stage = "3"
             workflow.progress = 16
             workflow.save()
@@ -1458,7 +1473,7 @@ class WorkflowStatusView(APIView):
             # 双星 - 摄影部过白底
             if workflow.photographer != user:
                 return Response({"message": "你没有这个权限"}, status=403)
-            workflow.photographer_approval_time = datetime.now()
+            workflow.photographer_approval_time = timezone.now()
             workflow.photographer_comments = payload.get("comments")
             workflow.white_background_images = payload.get("white_background_images", [])
             workflow.current_stage = "5"
@@ -1529,7 +1544,7 @@ class WorkflowStatusView(APIView):
             # 双星 - 钉钉价格审批
             if workflow.clerk != user:
                 return Response({"message": "你没有这个权限"}, status=403)
-            workflow.clerk_approval_time = datetime.now()
+            workflow.clerk_approval_time = timezone.now()
             workflow.current_stage = "9"
             workflow.progress = 67
             workflow.save()
@@ -1598,7 +1613,7 @@ class WorkflowStatusView(APIView):
             # 双星 - 文员审核
             if workflow.clerk != user:
                 return Response({"message": "你没有这个权限"}, status=403)
-            workflow.clerk_approval_time = datetime.now()
+            workflow.clerk_approval_time = timezone.now()
             workflow.clerk_comments = payload.get("comments")
             # 样品对接完成，自动进入订单处理流程
             workflow.workflow_type = "order"
@@ -1642,10 +1657,10 @@ class WorkflowStatusView(APIView):
             # 双星 - 样品会确认拒绝（淘汰流程）
             if workflow.merchandiser != user:
                 return Response({"message": "你没有这个权限"}, status=403)
-            workflow.current_stage = "eliminated"
+            workflow.current_stage = "-1"  # 淘汰状态用 -1 表示
             workflow.status = "rejected"
             workflow.eliminate_reason = payload.get("eliminate_reason", "样品会确认不通过，流程淘汰")
-            workflow.eliminate_time = datetime.now()
+            workflow.eliminate_time = timezone.now()
             workflow.eliminator = user
             workflow.save()
             return Response({
@@ -1662,7 +1677,7 @@ class WorkflowStatusView(APIView):
                 return Response({"message": "你没有这个权限"}, status=403)
             workflow.order_stage = 2  # 推进到下一阶段：业务审核材质
             workflow.order_created = True
-            workflow.order_created_time = datetime.now()
+            workflow.order_created_time = timezone.now()
             workflow.order_items = payload.get("order_items", [])
             workflow.order_warehouse = payload.get("warehouse", "")
             workflow.current_stage = "2"
@@ -1682,7 +1697,7 @@ class WorkflowStatusView(APIView):
                 return Response({"message": "你没有这个权限"}, status=403)
             workflow.order_stage = 3  # 推进到下一阶段：运营审核数据价格
             workflow.order_material_comments = payload.get("comments", "")
-            workflow.order_material_approval_time = datetime.now()
+            workflow.order_material_approval_time = timezone.now()
             workflow.current_stage = "3"
             workflow.progress = 50
             workflow.save()
@@ -1698,7 +1713,7 @@ class WorkflowStatusView(APIView):
                 return Response({"message": "你没有这个权限"}, status=403)
             workflow.order_stage = 4  # 推进到下一阶段：运营部门领导审核
             workflow.order_data_comments = payload.get("comments", "")
-            workflow.order_data_approval_time = datetime.now()
+            workflow.order_data_approval_time = timezone.now()
             workflow.current_stage = "4"
             workflow.progress = 75
             workflow.save()
@@ -1714,7 +1729,7 @@ class WorkflowStatusView(APIView):
                 return Response({"message": "你没有这个权限"}, status=403)
             workflow.order_stage = 5  # 订单处理完成
             workflow.order_leader_comments = payload.get("comments", "")
-            workflow.order_leader_approval_time = datetime.now()
+            workflow.order_leader_approval_time = timezone.now()
             # 订单处理流程完成，自动进入大货生产流程
             workflow.workflow_type = "production"
             workflow.production_stage = 0  # 待入库
@@ -1774,7 +1789,7 @@ class WorkflowStatusView(APIView):
                 workflow.production_stage = 0
             
             workflow.production_stage = 1  # 已入库
-            workflow.inbound_time = datetime.now()
+            workflow.inbound_time = timezone.now()
             workflow.inbound_operator = user
             workflow.save()
 
@@ -1785,7 +1800,8 @@ class WorkflowStatusView(APIView):
             })
 
         # 如果action不匹配任何已知操作
-        return Response({"message": "未知的操作类型"}, status=400)
+        logger.warning(f'[WorkflowStatusView] 未知的操作类型: {action}')
+        return Response({"message": f"未知的操作类型: {action}"}, status=400)
 
 
 class SupplierMerchandiserView(APIView):
